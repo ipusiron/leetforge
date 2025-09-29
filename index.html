@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <title>LeetForge - リートコンバーター</title>
+  <meta name="description" content="Convert plain text into 1337 (leet) speak with customizable mappings.">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Theme toggle button -->
+  <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+    </svg>
+  </button>
+  <header class="app-header">
+    <h1>LeetForge <span class="sub">リートコンバーター</span></h1>
+    <p class="tool-description">テキストを1337（リート）表記に変換する教育用ツール</p>
+    <nav class="tabs" role="tablist" aria-label="LeetForge Tabs">
+      <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-convert" id="tab-convert">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        <span>コンバート</span>
+      </button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="panel-mapping" id="tab-mapping">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <span>マッピング</span>
+      </button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="panel-guide" id="tab-guide">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span>座学</span>
+      </button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- コンバート -->
+    <section id="panel-convert" class="panel active" role="tabpanel" aria-labelledby="tab-convert">
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2>入力テキスト</h2>
+            <div class="controls-inline">
+              <button id="btn-clear-input" class="btn ghost" title="入力をクリア">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                <span>クリア</span>
+              </button>
+            </div>
+          </div>
+          <textarea id="input-text" placeholder="ここにテキストを入力…（最大 50,000 文字）" maxlength="50000"></textarea>
+          <div class="hint">未定義の文字は変換せず、そのまま出力します。</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>出力テキスト</h2>
+            <div class="controls-inline">
+              <button id="btn-copy-output" class="btn" title="出力をコピー">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span>コピー</span>
+              </button>
+            </div>
+          </div>
+          <textarea id="output-text" readonly placeholder="ここに結果が表示されます"></textarea>
+          <div class="diff-toggle">
+            <label class="toggle">
+              <input type="checkbox" id="opt-diff-view" />
+              <span>比較ビュー</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt">
+        <div class="card-header">
+          <h3>オプション</h3>
+        </div>
+        <div class="options">
+          <label class="toggle">
+            <input type="checkbox" id="opt-realtime" checked />
+            <span>リアルタイム変換</span>
+          </label>
+
+          <label class="toggle">
+            <input type="checkbox" id="opt-seed-lock" />
+            <span>シード固定（再現性）</span>
+          </label>
+
+          <label class="field" id="seed-field">
+            <span>シード値</span>
+            <input id="seed-value" type="number" inputmode="numeric" placeholder="例: 1337" disabled />
+          </label>
+
+          <label class="field">
+            <span>複数候補の選択方式</span>
+            <select id="select-mode">
+              <option value="uniform">一様ランダム</option>
+              <option value="roundrobin">ラウンドロビン</option>
+            </select>
+          </label>
+
+          <div class="spacer"></div>
+
+          <button id="btn-convert" class="btn primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span>変換を実行</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 座学 -->
+    <section id="panel-guide" class="panel" role="tabpanel" aria-labelledby="tab-guide" hidden>
+      <div class="guide-container">
+
+        <!-- リート基礎 -->
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+              リート（1337 Speak）とは
+            </h2>
+          </div>
+          <div class="guide-content">
+            <p><strong>リート（Leet）</strong>は、英数字や記号を使って通常の文字を置き換える表記法です。<br>「Elite（エリート）」が「3l337」→「leet」と変化したことが名前の由来です。</p>
+
+            <div class="timeline">
+              <div class="timeline-item">
+                <div class="timeline-year">1980年代</div>
+                <div class="timeline-content">
+                  <h4>BBS時代の誕生</h4>
+                  <p>ハッカーやプログラマーが検閲やフィルタリングを回避するために開発</p>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-year">1990年代</div>
+                <div class="timeline-content">
+                  <h4>ゲーム文化で普及</h4>
+                  <p>オンラインゲームコミュニティで「エリート」の略語として流行</p>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-year">2000年代</div>
+                <div class="timeline-content">
+                  <h4>インターネット文化に定着</h4>
+                  <p>ミーム化し、様々な場面で使用されるように</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 基本変換ルール -->
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+              </svg>
+              基本的な変換ルール
+            </h2>
+          </div>
+          <div class="guide-content">
+            <div class="conversion-rules">
+              <div class="rule-category">
+                <h4>形状による置換</h4>
+                <div class="rule-grid">
+                  <div class="rule-item">
+                    <span class="char">A</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">4, @</span>
+                    <span class="reason">三角形の類似性</span>
+                  </div>
+                  <div class="rule-item">
+                    <span class="char">E</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">3</span>
+                    <span class="reason">横向きの形状</span>
+                  </div>
+                  <div class="rule-item">
+                    <span class="char">I</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">1, !</span>
+                    <span class="reason">縦線の形状</span>
+                  </div>
+                  <div class="rule-item">
+                    <span class="char">O</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">0</span>
+                    <span class="reason">円形の類似性</span>
+                  </div>
+                  <div class="rule-item">
+                    <span class="char">S</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">5, $</span>
+                    <span class="reason">曲線の形状</span>
+                  </div>
+                  <div class="rule-item">
+                    <span class="char">T</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">7, +</span>
+                    <span class="reason">十字形の構造</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rule-category">
+                <h4>複合文字による表現</h4>
+                <div class="rule-grid">
+                  <div class="rule-item">
+                    <span class="char">H</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">|-|, #</span>
+                    <span class="reason">横棒で連結</span>
+                  </div>
+                  <div class="rule-item">
+                    <span class="char">M</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">/\/\</span>
+                    <span class="reason">ジグザグ形状</span>
+                  </div>
+                  <div class="rule-item">
+                    <span class="char">W</span>
+                    <span class="arrow">→</span>
+                    <span class="leet">\/\/</span>
+                    <span class="reason">V字の連続</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 活用場面 -->
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+              実用的な活用場面
+            </h2>
+          </div>
+          <div class="guide-content">
+            <div class="use-cases">
+              <div class="use-case">
+                <div class="use-case-icon security">🔒</div>
+                <div class="use-case-content">
+                  <h4>セキュリティ分野</h4>
+                  <ul>
+                    <li><strong>パスワード強化</strong>: password → p4ssw0rd</li>
+                    <li><strong>辞書攻撃対策</strong>: 一般的な単語を予測困難に</li>
+                    <li><strong>フィッシング検出</strong>: 偽サイトのドメイン名分析</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="use-case">
+                <div class="use-case-icon education">📚</div>
+                <div class="use-case-content">
+                  <h4>教育・学習</h4>
+                  <ul>
+                    <li><strong>暗号化学習</strong>: 置換暗号の基本概念</li>
+                    <li><strong>文字列操作</strong>: プログラミング実習</li>
+                    <li><strong>言語学習</strong>: 文字認識と表記システム</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="use-case">
+                <div class="use-case-icon communication">💬</div>
+                <div class="use-case-content">
+                  <h4>コミュニケーション</h4>
+                  <ul>
+                    <li><strong>ユーザー名</strong>: ゲームやSNSでの個性表現</li>
+                    <li><strong>アート表現</strong>: ASCII アートや装飾テキスト</li>
+                    <li><strong>文化的表現</strong>: インターネット文化の一部</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 注意点とベストプラクティス -->
+        <div class="card">
+          <div class="card-header">
+            <h2>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              注意点とベストプラクティス
+            </h2>
+          </div>
+          <div class="guide-content">
+            <div class="best-practices">
+              <div class="practice-section">
+                <h4>⚠️ 使用時の注意点</h4>
+                <ul class="warning-list">
+                  <li><strong>可読性の低下</strong>: 過度な使用は理解を困難にする</li>
+                  <li><strong>セキュリティの限界</strong>: 現代の攻撃手法には限定的</li>
+                  <li><strong>文脈の重要性</strong>: 使用場面を適切に判断する</li>
+                  <li><strong>アクセシビリティ</strong>: スクリーンリーダーでの読み上げが困難</li>
+                </ul>
+              </div>
+
+              <div class="practice-section">
+                <h4>✅ 効果的な使用方法</h4>
+                <ul class="tip-list">
+                  <li><strong>段階的な変換</strong>: 一部の文字のみから始める</li>
+                  <li><strong>文脈に応じた選択</strong>: 目的に合った変換レベルを選ぶ</li>
+                  <li><strong>一貫性の維持</strong>: 同じルールを継続的に適用</li>
+                  <li><strong>可読性の確保</strong>: 重要な情報は明確に保つ</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- マッピング -->
+    <section id="panel-mapping" class="panel" role="tabpanel" aria-labelledby="tab-mapping" hidden>
+      <div class="card">
+        <div class="card-header">
+          <h2>対応表（マッピング）</h2>
+          <div class="controls-inline">
+            <button id="btn-add-key" class="btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>キーを追加</span>
+            </button>
+            <div class="preset-controls">
+              <label class="field">
+                <span>プリセット</span>
+                <select id="leet-preset" required>
+                  <option value="">選択してください</option>
+                  <option value="basic">基本 (Basic)</option>
+                  <option value="standard">標準 (Standard)</option>
+                  <option value="advanced">上級 (Advanced)</option>
+                  <option value="elite">エリート (Elite)</option>
+                  <option value="words">単語変換 (Words)</option>
+                  <option value="combo">コンボ (Combo)</option>
+                  <option value="reverse">逆変換 (Reverse)</option>
+                </select>
+              </label>
+              <button id="btn-apply-preset" class="btn ghost" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 12h18m-9-9l9 9-9 9"></path>
+                </svg>
+                <span>適用</span>
+              </button>
+            </div>
+            <button id="btn-export-json" class="btn ghost">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>エクスポート</span>
+            </button>
+            <label class="btn ghost file-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>インポート</span>
+              <input id="file-import-json" type="file" accept="application/json" hidden />
+            </label>
+            <button id="btn-reset-defaults" class="btn danger ghost" title="初期マップに戻す">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <polyline points="23 20 23 14 17 14"></polyline>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+              </svg>
+              <span>初期化</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table" id="mapping-table">
+            <thead>
+              <tr>
+                <th style="width:72px">有効</th>
+                <th style="width:120px">キー/単語</th>
+                <th>候補（カンマ区切り）</th>
+                <th style="width:180px">操作</th>
+              </tr>
+            </thead>
+            <tbody id="mapping-tbody">
+              <!-- 動的に生成 -->
+            </tbody>
+          </table>
+        </div>
+        <div class="hint">キーは<strong>1文字または単語</strong>。大文字・小文字は別扱い。単語が文字より優先されます。</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- プリセット確認ダイアログ -->
+  <dialog id="preset-dialog">
+    <form method="dialog" class="dialog-card" id="preset-form">
+      <h3>プリセット適用確認</h3>
+      <div class="dialog-body">
+        <div class="preset-info">
+          <div class="preset-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="preset-details">
+            <h4 id="preset-name">プリセット名</h4>
+            <p id="preset-description">プリセットの説明</p>
+          </div>
+        </div>
+        <div class="preset-warning">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span>現在のマッピング設定は上書きされます</span>
+        </div>
+        <div class="preset-stats">
+          <div class="stat-item">
+            <span class="stat-label">有効になる文字数:</span>
+            <span class="stat-value" id="preset-enable-count">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">無効になる文字数:</span>
+            <span class="stat-value" id="preset-disable-count">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn ghost">キャンセル</button>
+        <button id="preset-confirm" type="submit" class="btn primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>適用する</span>
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 編集ダイアログ -->
+  <dialog id="edit-dialog">
+    <form method="dialog" class="dialog-card" id="edit-form">
+      <h3>マッピングの編集</h3>
+      <div class="dialog-body">
+        <label class="field">
+          <span>キー/単語</span>
+          <input id="dlg-key" type="text" maxlength="20" required />
+        </label>
+        <label class="field">
+          <span>候補（カンマ区切り）</span>
+          <input id="dlg-alts" type="text" placeholder="例: 4, @, /-\\" />
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="dlg-enabled" />
+          <span>有効にする</span>
+        </label>
+        <div class="error" id="dlg-error" role="alert" aria-live="polite"></div>
+      </div>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn ghost">キャンセル</button>
+        <button id="dlg-delete" type="button" class="btn danger ghost">キー行を削除</button>
+        <button id="dlg-save" type="submit" class="btn primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer>
+    <div class="footer">
+      🔗 GitHubリポジトリはこちら（ <a href="https://github.com/ipusiron/leetforge" target="_blank" rel="noopener noreferrer">ipusiron/leetforge</a> ）
+    </div>
+  </footer>
+
+  <template id="row-template">
+    <tr>
+      <td class="center"><input type="checkbox" class="cell-enabled" /></td>
+      <td class="mono cell-key"></td>
+      <td class="cell-alts"></td>
+      <td class="center">
+        <button class="btn xs" data-action="edit">編集</button>
+        <button class="btn xs danger ghost" data-action="delete">削除</button>
+      </td>
+    </tr>
+  </template>
+
+  <script src="script.js"></script>
+</body>
+</html>
