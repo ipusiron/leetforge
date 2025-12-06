@@ -1,11 +1,36 @@
 <!--
 ---
-title: LeetForge
-category: text-conversion
+id: day079
+slug: leetforge
+
+title: "LeetForge"
+
+subtitle_ja: "リートコンバーター"
+subtitle_en: "Leet Speak Converter"
+
+description_ja: "通常のテキストを1337（リート表記）に変換する教育用ツール。文字ごとに複数の置換候補を割り当て、ランダム／循環で出力を生成できます。"
+description_en: "Interactive tool to convert plain text into 1337 (leet) speak with customizable mappings. Supports multiple replacement candidates per character with random or round-robin selection."
+
+category_ja:
+  - テキスト変換
+  - 符号化
+category_en:
+  - Text Conversion
+  - Encording
+
 difficulty: 1
-description: Interactive tool to convert plain text into 1337 (leet) speak with customizable mappings.
-tags: [leet, converter, obfuscation, education, javascript]
-demo: https://ipusiron.github.io/leetforge/
+
+tags:
+  - leet
+  - converter
+  - obfuscation
+  - education
+  - javascript
+
+repo_url: "https://github.com/ipusiron/leetforge"
+demo_url: "https://ipusiron.github.io/leetforge/"
+
+hub: true
 ---
 -->
 
