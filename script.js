@@ -1,158 +1,64 @@
 /* =======================================================
  * LeetForge - 完成版
- * - 2タブ（コンバート / マッピング）
+ * - 3タブ（コンバート / マッピング / 座学）
+ * - 変換の計算は js/leet-core.js（LeetCore）。script.js は画面の処理だけ
  * - マッピング一覧/編集/追加/削除
  * - JSON インポート/エクスポート
  * - ランダム/ラウンドロビン選択
- * - シード固定（Mulberry32）
+ * - シード固定（位置ハッシュ。同じシードなら同じ結果）
  * - リアルタイム変換（デバウンス）
  * ======================================================= */
 
 const STORAGE_KEY = "leetforge.mapping.v1";
-const DEFAULT_MAPPING = {
-  version: 1,
-  map: {
-    // Lowercase letters - more common in leet
-    "a": { enabled: true,  alts: [
-      { value: "4", enabled: true },
-      { value: "@", enabled: true },
-      { value: "/\\", enabled: false },
-      { value: "/-\\", enabled: false },
-      { value: "^", enabled: false },
-      { value: "(L", enabled: false },
-      { value: "∂", enabled: false }
-    ]},
-    "b": { enabled: true,  alts: [
-      { value: "8", enabled: true },
-      { value: "|3", enabled: true },
-      { value: "13", enabled: false },
-      { value: "!3", enabled: false },
-      { value: "(3", enabled: false },
-      { value: "/3", enabled: false },
-      { value: ")3", enabled: false },
-      { value: "|-]", enabled: false },
-      { value: "j3", enabled: false },
-      { value: "ß", enabled: false }
-    ]},
-    "c": { enabled: true,  alts: ["(", "[", "<", "¢", "©", "{"] },
-    "d": { enabled: true,  alts: ["|)", "(|", "[)", "I>", "|>", "T)"] },
-    "e": { enabled: true,  alts: ["3", "€", "£", "&", "ə"] },
-    "f": { enabled: true,  alts: ["|=", "ph", "|#", "]="] },
-    "g": { enabled: true,  alts: ["9", "6", "&", "(_+", "[,", "(_-", "C-"] },
-    "h": { enabled: true,  alts: ["#", "|-|", "[-]", "]-[", ")-(", "(-)", ":-:", "}{"] },
-    "i": { enabled: true,  alts: ["1", "!", "|", "][", "¡"] },
-    "j": { enabled: true,  alts: ["_|", "_/", "]", "</"] },
-    "k": { enabled: true,  alts: ["|<", "1<", "l<", "|{", "][<"] },
-    "l": { enabled: true,  alts: ["1", "|", "7", "£", "|_"] },
-    "m": { enabled: true,  alts: ["/\\/\\", "|\\/|", "^^", "nn", "IVI", "[V]", "{V}"] },
-    "n": { enabled: true,  alts: ["|\\|", "/\\/", "[]\\[]", "<\\>", "{\\}", "~", "ท"] },
-    "o": { enabled: true,  alts: ["0", "()", "[]", "{}", "°", "¤"] },
-    "p": { enabled: true,  alts: ["|*", "|o", "|>", "[]D", "|7"] },
-    "q": { enabled: true,  alts: ["(_,)", "()_", "0_", "<|", "&"] },
-    "r": { enabled: true,  alts: ["|2", "12", "2", "/2", "I2", "|^", "l2", "Я"] },
-    "s": { enabled: true,  alts: ["5", "$", "z", "§", "ş"] },
-    "t": { enabled: true,  alts: ["7", "+", "-|-", "']['", "†", "|"] },
-    "u": { enabled: true,  alts: ["|_|", "(_)", "v", "L|", "µ"] },
-    "v": { enabled: true,  alts: ["\\/", "|/", "\\|"] },
-    "w": { enabled: true,  alts: ["\\/\\/", "vv", "\\N", "'//", "\\\\//", "\\^/", "(n)", "\\V/", "\\X/"] },
-    "x": { enabled: true,  alts: ["><", "}{", ")(", "]["] },
-    "y": { enabled: true,  alts: ["`/", "¥", "\\|/", "j", "\\//"] },
-    "z": { enabled: true,  alts: ["2", "7_", ">_", "%", "~/_"] },
+const Core = globalThis.LeetCore;
+const t = (key, values) => globalThis.LFMessages.t(key, values);
 
-    // Uppercase letters - less common but included
-    "A": { enabled: false, alts: ["4", "@", "/\\", "Д"] },
-    "B": { enabled: false, alts: ["8", "|3", "ß"] },
-    "C": { enabled: false, alts: ["(", "[", "©"] },
-    "D": { enabled: false, alts: ["|)", "[)", "Ð"] },
-    "E": { enabled: false, alts: ["3", "€", "£"] },
-    "F": { enabled: false, alts: ["|=", "]="] },
-    "G": { enabled: false, alts: ["6", "9", "C-"] },
-    "H": { enabled: false, alts: ["#", "|-|", "}{"] },
-    "I": { enabled: false, alts: ["1", "!", "|"] },
-    "J": { enabled: false, alts: ["_|", "]"] },
-    "K": { enabled: false, alts: ["|<", "|{"] },
-    "L": { enabled: false, alts: ["1", "|_", "£"] },
-    "M": { enabled: false, alts: ["/\\/\\", "|\\/|", "IVI"] },
-    "N": { enabled: false, alts: ["|\\|", "/\\/", "И"] },
-    "O": { enabled: false, alts: ["0", "()", "[]"] },
-    "P": { enabled: false, alts: ["|*", "|>", "[]D"] },
-    "Q": { enabled: false, alts: ["(_,)", "9", "0_"] },
-    "R": { enabled: false, alts: ["|2", "Я"] },
-    "S": { enabled: false, alts: ["5", "$", "§"] },
-    "T": { enabled: false, alts: ["7", "+", "†"] },
-    "U": { enabled: false, alts: ["|_|", "(_)", "µ"] },
-    "V": { enabled: false, alts: ["\\/", "|/"] },
-    "W": { enabled: false, alts: ["\\/\\/", "VV", "\\N"] },
-    "X": { enabled: false, alts: ["><", "}{", ")("] },
-    "Y": { enabled: false, alts: ["`/", "¥", "\\|/"] },
-    "Z": { enabled: false, alts: ["2", "7_", "%"] },
-
-    // Numbers - reverse leet (numbers to letters)
-    "0": { enabled: false, alts: ["o", "O", "()"] },
-    "1": { enabled: false, alts: ["i", "I", "l", "L", "|"] },
-    "2": { enabled: false, alts: ["z", "Z", "to", "too"] },
-    "3": { enabled: false, alts: ["e", "E", "ε"] },
-    "4": { enabled: false, alts: ["a", "A", "for"] },
-    "5": { enabled: false, alts: ["s", "S"] },
-    "6": { enabled: false, alts: ["g", "G"] },
-    "7": { enabled: false, alts: ["t", "T", "l", "L"] },
-    "8": { enabled: false, alts: ["b", "B"] },
-    "9": { enabled: false, alts: ["g", "G", "q"] },
-
-    // Common word substitutions
-    "and": { enabled: true, alts: ["&", "n", "+"] },
-    "for": { enabled: true, alts: ["4"] },
-    "to": { enabled: true, alts: ["2"] },
-    "too": { enabled: false, alts: ["2"] },
-    "you": { enabled: true, alts: ["u"] },
-    "are": { enabled: false, alts: ["r"] },
-    "see": { enabled: false, alts: ["c"] },
-    "be": { enabled: false, alts: ["b"] },
-    "ate": { enabled: false, alts: ["8"] },
-    "great": { enabled: true, alts: ["gr8"] },
-    "mate": { enabled: false, alts: ["m8"] },
-    "late": { enabled: false, alts: ["l8"] }
+// 保存領域。localStorage が使えない環境（例外になる設定・プライベートモードの一部）でも動き、保存できないことは画面に出す
+const storage = {
+  available: true,
+  get(key) {
+    try { return localStorage.getItem(key); } catch { this.available = false; return null; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, value); return true; } catch { this.available = false; return false; }
   }
 };
 
+// 画面への通知（alert を使わない）
+const noticeEl = document.getElementById("notice");
+const mappingStatusEl = document.getElementById("mapping-status");
+function showNotice(text) {
+  noticeEl.textContent = text;
+  noticeEl.hidden = !text;
+}
+function showMappingStatus(text, isError = false) {
+  mappingStatusEl.textContent = text;
+  mappingStatusEl.classList.toggle("error", isError);
+}
+
 // ---------- State ----------
 let mapping = loadMapping();
-let rrIndexPerChar = Object.create(null); // round-robin index per char
+let lastResult = null; // 直近の変換結果（区間つき）
 
 // ---------- Helpers ----------
 function saveMapping() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(mapping));
+  storage.set(STORAGE_KEY, JSON.stringify(mapping));
 }
 
 function loadMapping() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return structuredClone(DEFAULT_MAPPING);
+  const raw = storage.get(STORAGE_KEY);
+  if (!raw) return Core.initialMapping();
   try {
     const obj = JSON.parse(raw);
-    if (!obj || typeof obj !== "object" || typeof obj.map !== "object") {
-      return structuredClone(DEFAULT_MAPPING);
-    }
-    if (typeof obj.version !== "number") obj.version = 1;
-
-    // Migrate old format to new format
-    const migratedObj = { ...obj };
-    for (const [key, entry] of Object.entries(obj.map)) {
-      if (entry && Array.isArray(entry.alts)) {
-        migratedObj.map[key] = {
-          ...entry,
-          alts: normalizeAltsToNewFormat(entry.alts)
-        };
-      }
-    }
-
-    return migratedObj;
+    const normalized = Core.normalizeMapping(obj);
+    return Object.keys(normalized.map).length ? normalized : Core.initialMapping();
   } catch {
-    return structuredClone(DEFAULT_MAPPING);
+    return Core.initialMapping();
   }
 }
 
 function resetToDefaults() {
-  mapping = structuredClone(DEFAULT_MAPPING);
+  mapping = Core.initialMapping();
   saveMapping();
   renderTable();
 }
@@ -165,191 +71,31 @@ function debounce(fn, ms = 300) {
   };
 }
 
-// Deterministic PRNG: Mulberry32
-function mulberry32(seed) {
-  let t = seed >>> 0;
-  return function() {
-    t += 0x6D2B79F5;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
+// シード: 「シード固定」なら入力値、固定しないならセッションのシード（リアルタイムで安定し、「変換を実行」で引き直す）
+function randomSeed() {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0];
 }
-
-// choose index by mode
-function chooseIndex(char, altsLen, mode, rng, position = 0) {
-  if (altsLen <= 1) return 0;
-  if (mode === "roundrobin") {
-    const k = rrIndexPerChar[char] || 0;
-    rrIndexPerChar[char] = k + 1;
-    return k % altsLen;
-  }
-  // uniform random - use position for consistency in realtime mode
-  const isRealtime = optRealtime.checked;
-  if (isRealtime && !optSeedLock.checked) {
-    // Use character and position for deterministic selection
-    const charCode = char.charCodeAt(0);
-    const deterministicIndex = (charCode + position) % altsLen;
-    return deterministicIndex;
-  }
-  return Math.floor(rng() * altsLen);
-}
-
-function normalizeAlts(input) {
-  if (!input) return [];
-  return input
-    .split(",")
-    .map(s => s.trim())
-    .filter(s => s.length > 0)
-    .filter((s, i, arr) => arr.indexOf(s) === i);
-}
-
-// Helper functions for new alternative structure
-function isNewAltsFormat(alts) {
-  return Array.isArray(alts) && alts.length > 0 &&
-         typeof alts[0] === 'object' && 'value' in alts[0];
-}
-
-function normalizeAltsToNewFormat(alts) {
-  if (!Array.isArray(alts)) return [];
-
-  // If already in new format, return as-is
-  if (isNewAltsFormat(alts)) {
-    return alts.map(alt => ({
-      value: String(alt.value || ''),
-      enabled: typeof alt.enabled === 'boolean' ? alt.enabled : true
-    })).filter(alt => alt.value.length > 0);
-  }
-
-  // Convert old format (array of strings) to new format
-  return alts.filter(alt => alt && String(alt).trim().length > 0)
-             .map(alt => ({ value: String(alt).trim(), enabled: true }));
-}
-
-function getEnabledAlts(alts) {
-  if (!Array.isArray(alts)) return [];
-
-  if (isNewAltsFormat(alts)) {
-    return alts.filter(alt => alt.enabled).map(alt => alt.value);
-  }
-
-  // Old format - all are enabled
-  return alts.filter(alt => alt && String(alt).trim().length > 0);
-}
-
-function normalizeAltsFromInput(input) {
-  if (!input) return [];
-  const stringAlts = normalizeAlts(input);
-  return stringAlts.map(value => ({ value, enabled: true }));
-}
-
-function validateKeyChar(ch) {
-  if (typeof ch !== "string") return false;
-  // Allow single characters or words (alphanumeric + some symbols)
-  const trimmed = ch.trim();
-  if (trimmed.length === 0) return false;
-  if (trimmed.length > 20) return false; // Reasonable limit
-
-  // Allow letters, numbers, and common symbols - stricter pattern
-  const validPattern = /^[a-zA-Z0-9\-_@#$%&+*=<>()[\]{}|\\\/.,!?]+$/;
-
-  // Additional security checks
-  if (trimmed.includes('<script>') || trimmed.includes('</script>')) return false;
-  if (trimmed.includes('javascript:')) return false;
-  if (trimmed.includes('data:')) return false;
-
-  return validPattern.test(trimmed);
-}
-
-function sanitizeInput(input) {
-  if (typeof input !== "string") return "";
-  // Remove potential XSS vectors
-  return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/javascript:/gi, '')
-    .replace(/data:/gi, '')
-    .replace(/on\w+\s*=/gi, '')
-    .trim();
-}
-
-// Static seed for consistent realtime conversion
-let staticSeed = 1337;
+let sessionSeed = randomSeed();
 
 // ---------- Convert ----------
 function doConvert() {
-  const text = sanitizeInput(inputText.value);
+  const text = inputText.value;
   const mode = selectMode.value; // "uniform" | "roundrobin"
   const seedLocked = optSeedLock.checked;
-  const seedVal = seedValue.value.trim();
-
-  // For realtime mode, use deterministic approach
   const isRealtime = optRealtime.checked;
 
-  // rng
-  let rng;
-  if (seedLocked) {
-    const seedInt = seedVal === "" ? 1337 : Number(seedVal);
-    rng = mulberry32(Number.isFinite(seedInt) ? seedInt : 1337);
-  } else if (isRealtime) {
-    // Use static seed for realtime to ensure consistency
-    rng = mulberry32(staticSeed);
-  } else {
-    // Generate new seed only for manual conversion
-    staticSeed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
-    rng = mulberry32(staticSeed);
-  }
+  // 手動の「変換を実行」はそのたびに別の結果（シードを引き直す）。リアルタイムは同じシードで安定させる
+  if (!isRealtime && !seedLocked) sessionSeed = randomSeed();
+  const seed = seedLocked ? Core.parseSeed(seedValue.value) : sessionSeed;
 
-  // Reset round-robin only for manual conversion or when seed changes
-  if (!isRealtime || seedLocked) {
-    rrIndexPerChar = Object.create(null);
-  }
+  const rate = Number(rateValue.value);
+  const asciiOnly = optAsciiOnly.checked;
 
-  // Sort mapping keys by length (longest first) to prioritize words over characters
-  const sortedKeys = Object.keys(mapping.map)
-    .filter(key => {
-      const entry = mapping.map[key];
-      return entry.enabled && getEnabledAlts(entry.alts).length > 0;
-    })
-    .sort((a, b) => b.length - a.length);
-
-  let result = text;
-  let processedPositions = new Set();
-
-  // Process words first, then characters
-  for (const key of sortedKeys) {
-    const entry = mapping.map[key];
-    const enabledAlts = getEnabledAlts(entry.alts);
-    if (!entry.enabled || !enabledAlts.length) continue;
-
-    // Create case-insensitive regex for word boundaries if key is a word
-    const isWord = key.length > 1;
-    const regex = isWord
-      ? new RegExp(`\\b${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi')
-      : new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-
-    result = result.replace(regex, (match, offset) => {
-      // Check if this position has already been processed by a longer match
-      let shouldSkip = false;
-      for (let i = offset; i < offset + match.length; i++) {
-        if (processedPositions.has(i)) {
-          shouldSkip = true;
-          break;
-        }
-      }
-
-      if (shouldSkip) return match;
-
-      // Mark these positions as processed
-      for (let i = offset; i < offset + match.length; i++) {
-        processedPositions.add(i);
-      }
-
-      const idx = chooseIndex(key, enabledAlts.length, mode, rng, offset);
-      return enabledAlts[idx];
-    });
-  }
-
-  outputText.value = result;
+  lastResult = Core.convert(text, mapping, { mode, seed, rate, asciiOnly });
+  outputText.value = lastResult.text;
+  renderStats(lastResult, text);
 
   // Update diff view if enabled
   if (optDiffView.checked) {
@@ -359,12 +105,21 @@ function doConvert() {
 
 const debouncedConvert = debounce(doConvert, 250);
 
+function renderStats(result, text) {
+  if (!text) {
+    convertStats.textContent = "";
+    return;
+  }
+  const st = result.stats;
+  convertStats.textContent = t("conv.stats", { changed: st.changed, chars: st.chars, keys: st.keys, length: result.text.length });
+}
+
 // ---------- Mapping Table ----------
 const tbody = document.getElementById("mapping-tbody");
 const rowTemplate = document.getElementById("row-template");
 
 function renderTable() {
-  tbody.innerHTML = "";
+  tbody.replaceChildren();
   // stable sort by key (localeCompare)
   const keys = Object.keys(mapping.map).sort((a,b)=>a.localeCompare(b));
   for (const key of keys) {
@@ -375,29 +130,29 @@ function renderTable() {
     const altsEl = row.querySelector(".cell-alts");
 
     enabledEl.checked = !!entry.enabled;
-    keyEl.textContent = key;
+    enabledEl.setAttribute('aria-label', t('map.enableKey', { key }));
+    const badge = document.createElement('span');
+    badge.className = Array.from(key).length > 1 ? 'key-badge word' : 'key-badge char';
+    badge.textContent = key;
+    keyEl.replaceChildren(badge);
 
     // Create alternatives list with individual checkboxes
-    altsEl.innerHTML = '';
+    altsEl.replaceChildren();
     altsEl.className = 'alternatives-list';
 
-    const normalizedAlts = normalizeAltsToNewFormat(entry.alts);
+    const normalizedAlts = entry.alts;
     normalizedAlts.forEach((alt, index) => {
-      const altItem = document.createElement('div');
+      // label で包むので、文字の部分を押してもチェックが切り替わる（タップの面も広くなる）
+      const altItem = document.createElement('label');
       altItem.className = `alt-item ${alt.enabled ? '' : 'disabled'}`;
+      altItem.title = t('map.altTitle', { key, value: alt.value });
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.checked = alt.enabled;
       checkbox.addEventListener('change', () => {
         // Update the alternative's enabled state
-        if (isNewAltsFormat(entry.alts)) {
-          entry.alts[index].enabled = checkbox.checked;
-        } else {
-          // Convert to new format if needed
-          entry.alts = normalizeAltsToNewFormat(entry.alts);
-          entry.alts[index].enabled = checkbox.checked;
-        }
+        entry.alts[index].enabled = checkbox.checked;
 
         // Update visual state
         altItem.className = `alt-item ${checkbox.checked ? '' : 'disabled'}`;
@@ -409,24 +164,11 @@ function renderTable() {
       const valueSpan = document.createElement('span');
       valueSpan.className = 'alt-value';
       valueSpan.textContent = alt.value;
-      valueSpan.addEventListener('click', () => {
-        checkbox.checked = !checkbox.checked;
-        checkbox.dispatchEvent(new Event('change'));
-      });
 
       altItem.appendChild(checkbox);
       altItem.appendChild(valueSpan);
       altsEl.appendChild(altItem);
     });
-
-    // Style word keys differently
-    if (key.length > 1) {
-      keyEl.classList.add('word-key');
-      keyEl.classList.remove('mono');
-    } else {
-      keyEl.classList.add('mono');
-      keyEl.classList.remove('word-key');
-    }
 
     // events
     enabledEl.addEventListener("change", () => {
@@ -435,8 +177,12 @@ function renderTable() {
       if (optRealtime.checked) debouncedConvert();
     });
 
-    row.querySelector("[data-action='edit']").addEventListener("click", () => openEditDialog(key));
-    row.querySelector("[data-action='delete']").addEventListener("click", () => deleteKey(key));
+    const editBtn = row.querySelector("[data-action='edit']");
+    const deleteBtn = row.querySelector("[data-action='delete']");
+    editBtn.textContent = t("map.edit");
+    deleteBtn.textContent = t("map.delete");
+    editBtn.addEventListener("click", () => openEditDialog(key));
+    deleteBtn.addEventListener("click", () => deleteKey(key));
 
     tbody.appendChild(row);
   }
@@ -467,17 +213,13 @@ function openEditDialog(key) {
   dlgKey.value = key;
   dlgEnabled.checked = !!entry.enabled;
 
-  // Convert alternatives to comma-separated string for editing
-  const altValues = getEnabledAlts(entry.alts).concat(
-    isNewAltsFormat(entry.alts)
-      ? entry.alts.filter(alt => !alt.enabled).map(alt => alt.value)
-      : []
-  );
-  dlgAlts.value = [...new Set(altValues)].join(", ");
+  dlgAlts.value = entry.alts.map(alt => alt.value).join(", ");
 
   dlgError.textContent = "";
   dlg.showModal();
 }
+
+document.getElementById("dlg-cancel").addEventListener("click", () => dlg.close());
 
 dlgDeleteBtn.addEventListener("click", () => {
   if (editingOriginalKey && (editingOriginalKey in mapping.map)) {
@@ -492,11 +234,24 @@ dlgDeleteBtn.addEventListener("click", () => {
 dlgForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const key = dlgKey.value.trim();
-  if (!validateKeyChar(key)) {
-    dlgError.textContent = "キーは1文字または単語（英数字・記号、最大20文字）で指定してください。";
+  if (!Core.isValidKey(key)) {
+    dlgError.textContent = t("err.keyInvalid");
     return;
   }
-  const newAlts = normalizeAltsFromInput(dlgAlts.value);
+  if (key !== editingOriginalKey && (key in mapping.map)) {
+    dlgError.textContent = t("err.keyDuplicate");
+    return;
+  }
+  // 既存の候補は有効・無効をそのまま引き継ぎ、新しい候補は有効にする
+  const previous = (editingOriginalKey && mapping.map[editingOriginalKey]) ? mapping.map[editingOriginalKey].alts : [];
+  const newAlts = Core.splitAlts(dlgAlts.value).map(value => {
+    const old = previous.find(alt => alt.value === value);
+    return { value, enabled: old ? old.enabled : true };
+  });
+  if (!newAlts.length) {
+    dlgError.textContent = t("err.altsEmpty");
+    return;
+  }
   const enabled = dlgEnabled.checked;
 
   // 上書き保存（キー変更にも対応）
@@ -537,61 +292,39 @@ document.getElementById("file-import-json").addEventListener("change", async (e)
   const file = e.target.files?.[0];
   if (!file) return;
   try {
+    // 読み込む前に大きさで弾く（1MB）
+    if (file.size > Core.LIMITS.importBytes) {
+      showMappingStatus(importErrorMessage("tooLarge"), true);
+      return;
+    }
     const text = await file.text();
-
-    // File size limit (1MB)
-    if (text.length > 1024 * 1024) {
-      alert("ファイルサイズが大きすぎます。1MB以下のファイルを選択してください。");
+    const parsed = Core.parseImport(text);
+    if (!parsed.ok) {
+      showMappingStatus(importErrorMessage(parsed.errors[0]), true);
       return;
     }
-
-    // Sanitize the JSON content
-    const sanitizedText = sanitizeInput(text);
-    const obj = JSON.parse(sanitizedText);
-
-    if (!obj || typeof obj !== "object" || typeof obj.map !== "object") {
-      alert("不正なJSONです。'map' オブジェクトが見つかりません。");
-      return;
-    }
-
-    // Validate object structure more strictly
-    if (Object.keys(obj.map).length > 200) {
-      alert("マッピング数が多すぎます。200個以下に制限してください。");
-      return;
-    }
-    // 取り込み時に正規化
-    const normalized = { version: Number(obj.version) || 1, map: {} };
-    for (const [k, v] of Object.entries(obj.map)) {
-      if (!validateKeyChar(k)) continue;
-      const en = !!v.enabled;
-
-      // Handle both old and new alternative formats
-      let alts;
-      if (Array.isArray(v.alts)) {
-        alts = normalizeAltsToNewFormat(v.alts);
-      } else {
-        // Convert string to new format
-        const stringAlts = normalizeAlts(String(v.alts || ""));
-        alts = stringAlts.map(value => ({ value, enabled: true }));
-      }
-
-      normalized.map[k] = { enabled: en, alts };
-    }
-    mapping = normalized;
+    mapping = parsed.mapping;
     saveMapping();
     renderTable();
+    const note = parsed.skipped.length ? t("map.importedSkipped", { keys: parsed.skipped.join(", ") }) : "";
+    showMappingStatus(t("map.imported", { count: parsed.count, note }));
     if (optRealtime.checked) debouncedConvert();
   } catch (err) {
     console.error(err);
-    alert("読み込みに失敗しました。JSONの形式を確認してください。");
+    showMappingStatus(importErrorMessage("invalidJson"), true);
   } finally {
     e.target.value = ""; // reset
   }
 });
 
+function importErrorMessage(code) {
+  const known = ["tooLarge", "invalidJson", "noMap", "tooManyKeys", "empty"];
+  return t(`err.${known.includes(code) ? code : "invalidJson"}`);
+}
+
 // ---------- Reset Defaults ----------
 document.getElementById("btn-reset-defaults").addEventListener("click", () => {
-  if (confirm("初期マップに戻します。よろしいですか？")) {
+  if (confirm(t("map.resetConfirm"))) {
     resetToDefaults();
     if (optRealtime.checked) debouncedConvert();
   }
@@ -601,70 +334,24 @@ document.getElementById("btn-reset-defaults").addEventListener("click", () => {
 const leetPreset = document.getElementById("leet-preset");
 const btnApplyPreset = document.getElementById("btn-apply-preset");
 
-const PRESETS = {
-  basic: {
-    name: "基本 (Basic)",
-    description: "最も基本的なLeet変換",
-    enableKeys: ["a", "e", "i", "o", "s", "t", "l"],
-    disableOthers: true
-  },
-  standard: {
-    name: "標準 (Standard)",
-    description: "一般的なLeet変換",
-    enableKeys: ["a", "b", "c", "e", "g", "h", "i", "l", "o", "s", "t", "z"],
-    disableOthers: true
-  },
-  advanced: {
-    name: "上級 (Advanced)",
-    description: "より複雑なLeet変換",
-    enableKeys: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"],
-    disableOthers: true
-  },
-  elite: {
-    name: "エリート (Elite)",
-    description: "全文字 + 大文字も有効",
-    enableKeys: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"],
-    disableOthers: true
-  },
-  reverse: {
-    name: "逆変換 (Reverse)",
-    description: "数字を文字に変換",
-    enableKeys: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
-    disableOthers: true
-  },
-  words: {
-    name: "単語変換 (Words)",
-    description: "よく使う英単語をLeet化",
-    enableKeys: ["and", "for", "to", "too", "you", "are", "see", "be", "ate", "great", "mate", "late"],
-    disableOthers: true
-  },
-  combo: {
-    name: "コンボ (Combo)",
-    description: "基本文字 + 単語変換",
-    enableKeys: ["a", "e", "i", "o", "s", "t", "l", "and", "for", "to", "you", "are", "great"],
-    disableOthers: true
-  }
-};
+function presetTableText(presetKey) {
+  const table = Core.PRESETS[presetKey].table;
+  if (!table) return "";
+  return Object.entries(table).map(([k, vals]) => `${k}→${vals.join("/")}`).join(" ");
+}
+
+// プリセットの名前と説明は辞書から（説明の置換表は計算部の表から作り、手で写さない）
+function presetName(presetKey) {
+  return t(`preset.${presetKey}.name`);
+}
+
+function presetDescription(presetKey) {
+  return t(`preset.${presetKey}.desc`, { table: presetTableText(presetKey) });
+}
 
 function applyPreset(presetKey) {
-  if (!PRESETS[presetKey]) return;
-
-  const preset = PRESETS[presetKey];
-
-  // Disable all if requested
-  if (preset.disableOthers) {
-    for (const key in mapping.map) {
-      mapping.map[key].enabled = false;
-    }
-  }
-
-  // Enable specified keys
-  preset.enableKeys.forEach(key => {
-    if (mapping.map[key]) {
-      mapping.map[key].enabled = true;
-    }
-  });
-
+  if (!Core.PRESETS[presetKey]) return;
+  mapping = Core.applyPreset(mapping, presetKey);
   saveMapping();
   renderTable();
   if (optRealtime.checked) debouncedConvert();
@@ -684,20 +371,16 @@ const presetDisableCountEl = document.getElementById("preset-disable-count");
 const presetConfirmBtn = document.getElementById("preset-confirm");
 
 function showPresetDialog(presetKey) {
-  const preset = PRESETS[presetKey];
-  if (!preset) return;
+  if (!Core.PRESETS[presetKey]) return;
 
   // Update dialog content
-  presetNameEl.textContent = preset.name;
-  presetDescriptionEl.textContent = preset.description;
+  presetNameEl.textContent = presetName(presetKey);
+  presetDescriptionEl.textContent = presetDescription(presetKey);
 
-  // Calculate stats
-  const currentEnabled = Object.keys(mapping.map).filter(key => mapping.map[key].enabled).length;
-  const willEnable = preset.enableKeys.length;
-  const willDisable = preset.disableOthers ? Object.keys(mapping.map).length - willEnable : 0;
-
-  presetEnableCountEl.textContent = willEnable;
-  presetDisableCountEl.textContent = willDisable;
+  // 有効になるキーの数と、いま有効で無効になるキーの数
+  const summary = Core.presetSummary(mapping, presetKey);
+  presetEnableCountEl.textContent = summary.enable;
+  presetDisableCountEl.textContent = summary.disable;
 
   // Store preset key for confirmation
   presetConfirmBtn.dataset.presetKey = presetKey;
@@ -717,33 +400,14 @@ presetForm.addEventListener("submit", (e) => {
   }
 });
 
+document.getElementById("preset-cancel").addEventListener("click", () => presetDialog.close());
+
 btnApplyPreset.addEventListener("click", () => {
   const selectedPreset = leetPreset.value;
-  if (selectedPreset && PRESETS[selectedPreset]) {
+  if (selectedPreset && Core.PRESETS[selectedPreset]) {
     showPresetDialog(selectedPreset);
   }
 });
-
-// ---------- Tabs ----------
-const tabConvert = document.getElementById("tab-convert");
-const tabMapping = document.getElementById("tab-mapping");
-const panelConvert = document.getElementById("panel-convert");
-const panelMapping = document.getElementById("panel-mapping");
-
-function activateTab(which) {
-  const isConvert = which === "convert";
-  tabConvert.classList.toggle("active", isConvert);
-  tabMapping.classList.toggle("active", !isConvert);
-  tabConvert.setAttribute("aria-selected", String(isConvert));
-  tabMapping.setAttribute("aria-selected", String(!isConvert));
-  panelConvert.hidden = !isConvert;
-  panelMapping.hidden = isConvert;
-  panelConvert.classList.toggle("active", isConvert);
-  panelMapping.classList.toggle("active", !isConvert);
-}
-
-tabConvert.addEventListener("click", () => activateTab("convert"));
-tabMapping.addEventListener("click", () => activateTab("mapping"));
 
 // ---------- Convert UI ----------
 const inputText   = document.getElementById("input-text");
@@ -756,6 +420,10 @@ const optSeedLock = document.getElementById("opt-seed-lock");
 const seedValue   = document.getElementById("seed-value");
 const seedField   = document.getElementById("seed-field");
 const selectMode  = document.getElementById("select-mode");
+const rateValue   = document.getElementById("rate-value");
+const rateOutput  = document.getElementById("rate-output");
+const optAsciiOnly = document.getElementById("opt-ascii-only");
+const convertStats = document.getElementById("convert-stats");
 
 btnConvert.addEventListener("click", () => {
   doConvert();
@@ -768,14 +436,18 @@ btnConvert.addEventListener("click", () => {
   }, 600);
 });
 btnCopyOut.addEventListener("click", async () => {
+  let ok = false;
   try {
     await navigator.clipboard.writeText(outputText.value);
-    btnCopyOut.classList.add('success');
-    flashButton(btnCopyOut, "✓ コピー完了");
-    setTimeout(() => btnCopyOut.classList.remove('success'), 500);
+    ok = true;
   } catch {
-    fallbackCopy(outputText);
+    ok = fallbackCopy(outputText);
   }
+  if (ok) {
+    btnCopyOut.classList.add('success');
+    setTimeout(() => btnCopyOut.classList.remove('success'), 500);
+  }
+  flashButton(btnCopyOut, ok ? t("conv.copied") : t("conv.copyFailed"));
 });
 btnClearIn.addEventListener("click", () => {
   inputText.value = "";
@@ -783,30 +455,28 @@ btnClearIn.addEventListener("click", () => {
 });
 
 function flashButton(btn, label) {
-  const originalContent = btn.innerHTML;
   const span = btn.querySelector('span');
-  if (span) {
-    const originalText = span.textContent;
-    span.textContent = label;
-    btn.disabled = true;
-    setTimeout(() => {
-      span.textContent = originalText;
-      btn.disabled = false;
-    }, 1000);
-  } else {
-    btn.textContent = label;
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.innerHTML = originalContent;
-      btn.disabled = false;
-    }, 1000);
-  }
+  if (!span) return;
+  const originalText = span.textContent;
+  span.textContent = label;
+  btn.disabled = true;
+  setTimeout(() => {
+    span.textContent = originalText;
+    btn.disabled = false;
+  }, 1000);
 }
 
+// clipboard API が使えないとき（file:// や権限なし）の代替。成功したかを返す
 function fallbackCopy(el) {
   el.select();
-  document.execCommand("copy");
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
   el.setSelectionRange(0, 0);
+  return ok;
 }
 
 inputText.addEventListener("input", () => {
@@ -824,11 +494,18 @@ optSeedLock.addEventListener("change", () => {
 seedValue.addEventListener("input", () => {
   if (optRealtime.checked) debouncedConvert();
 });
+rateValue.addEventListener("input", () => {
+  rateOutput.textContent = `${rateValue.value}%`;
+  if (optRealtime.checked) debouncedConvert();
+});
+optAsciiOnly.addEventListener("change", () => {
+  if (optRealtime.checked) debouncedConvert();
+});
 
 // persist simple options to localStorage
 const LS_OPT_KEY = "leetforge.options";
 function loadOptions() {
-  const raw = localStorage.getItem(LS_OPT_KEY);
+  const raw = storage.get(LS_OPT_KEY);
   if (!raw) return;
   try {
     const o = JSON.parse(raw);
@@ -843,6 +520,8 @@ function loadOptions() {
     }
     if (typeof o.seedValue === "string") seedValue.value = o.seedValue;
     if (o.mode === "uniform" || o.mode === "roundrobin") selectMode.value = o.mode;
+    if (typeof o.rate === "number" && o.rate >= 0 && o.rate <= 100) rateValue.value = String(o.rate);
+    if (typeof o.asciiOnly === "boolean") optAsciiOnly.checked = o.asciiOnly;
   } catch {}
 }
 function saveOptions() {
@@ -850,99 +529,92 @@ function saveOptions() {
     realtime: optRealtime.checked,
     seedLock: optSeedLock.checked,
     seedValue: seedValue.value,
-    mode: selectMode.value
+    mode: selectMode.value,
+    rate: Number(rateValue.value),
+    asciiOnly: optAsciiOnly.checked
   };
-  localStorage.setItem(LS_OPT_KEY, JSON.stringify(o));
+  storage.set(LS_OPT_KEY, JSON.stringify(o));
 }
 // Update convert button visibility based on realtime mode
 function updateConvertButtonVisibility() {
-  btnConvert.style.display = optRealtime.checked ? 'none' : 'inline-flex';
+  btnConvert.hidden = optRealtime.checked;
 }
 
 optRealtime.addEventListener("change", () => {
   updateConvertButtonVisibility();
   saveOptions();
+  if (optRealtime.checked) debouncedConvert();
 });
 
-for (const el of [optSeedLock, seedValue, selectMode]) {
+for (const el of [optSeedLock, seedValue, selectMode, rateValue, optAsciiOnly]) {
   el.addEventListener("change", saveOptions);
   el.addEventListener("input", saveOptions);
 }
 
 // ---------- Diff View Feature ----------
+// 変換の区間（segments）から変換前と変換後を並べて描く。置換の長さが変わっても対応がずれない
 const optDiffView = document.getElementById("opt-diff-view");
 const diffContainer = document.createElement('div');
 diffContainer.className = 'diff-view';
-diffContainer.style.display = 'none';
+diffContainer.hidden = true;
 
 function updateDiffView() {
-  if (optDiffView.checked && inputText.value && outputText.value) {
-    showDiffView();
-  } else {
+  if (!(optDiffView.checked && inputText.value)) {
     hideDiffView();
+    return;
   }
+  // 入力と結果がずれていたら変換し直す（doConvert が描き直す）
+  if (!lastResult || lastResult.segments.map(seg => seg.from).join('') !== inputText.value) {
+    doConvert();
+    return;
+  }
+  showDiffView();
+}
+
+function segmentNode(seg, side) {
+  const text = side === 'from' ? seg.from : seg.to;
+  if (!seg.changed) return document.createTextNode(text);
+  const mark = document.createElement('mark');
+  mark.className = `seg ${side}`;
+  mark.textContent = text;
+  mark.title = `${seg.from} → ${seg.to}`;
+  return mark;
 }
 
 function showDiffView() {
   const parent = outputText.parentElement;
   const insertBefore = parent.querySelector('.diff-toggle');
-
   if (!parent.contains(diffContainer)) {
     parent.insertBefore(diffContainer, insertBefore);
   }
 
-  // Create diff elements safely without innerHTML
-  diffContainer.innerHTML = '';
-
   const originalDiv = document.createElement('div');
   originalDiv.className = 'diff-text original';
-  originalDiv.textContent = inputText.value;
-
+  originalDiv.setAttribute('aria-label', t('conv.diffBefore'));
   const arrowDiv = document.createElement('div');
   arrowDiv.className = 'diff-arrow';
   arrowDiv.textContent = '→';
-
+  arrowDiv.setAttribute('aria-hidden', 'true');
   const convertedDiv = document.createElement('div');
   convertedDiv.className = 'diff-text converted';
-  convertedDiv.innerHTML = highlightChanges(inputText.value, outputText.value);
-
-  diffContainer.appendChild(originalDiv);
-  diffContainer.appendChild(arrowDiv);
-  diffContainer.appendChild(convertedDiv);
-  diffContainer.style.display = 'grid';
-  outputText.style.display = 'none';
+  convertedDiv.setAttribute('aria-label', t('conv.diffAfter'));
+  for (const seg of lastResult.segments) {
+    originalDiv.appendChild(segmentNode(seg, 'from'));
+    convertedDiv.appendChild(segmentNode(seg, 'to'));
+  }
+  diffContainer.replaceChildren(originalDiv, arrowDiv, convertedDiv);
+  diffContainer.hidden = false;
+  outputText.hidden = true;
 }
 
 function hideDiffView() {
-  diffContainer.style.display = 'none';
-  outputText.style.display = 'block';
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function highlightChanges(original, converted) {
-  const origChars = [...original];
-  const convChars = [...converted];
-  let result = [];
-
-  for (let i = 0; i < origChars.length; i++) {
-    if (i < convChars.length && origChars[i] !== convChars[i]) {
-      result.push(`<span class="char-highlight">${escapeHtml(convChars[i])}</span>`);
-    } else if (i < convChars.length) {
-      result.push(escapeHtml(convChars[i]));
-    }
-  }
-
-  return result.join('');
+  diffContainer.hidden = true;
+  outputText.hidden = false;
 }
 
 optDiffView.addEventListener('change', () => {
   updateDiffView();
-  localStorage.setItem('leetforge.diffView', optDiffView.checked);
+  storage.set('leetforge.diffView', optDiffView.checked);
 });
 
 // ---------- Theme Toggle ----------
@@ -962,7 +634,7 @@ function setTheme(theme) {
   } else {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
-  localStorage.setItem(THEME_KEY, theme);
+  storage.set(THEME_KEY, theme);
 }
 
 function toggleTheme() {
@@ -973,7 +645,7 @@ function toggleTheme() {
 
 function initTheme() {
   // Check localStorage first
-  const savedTheme = localStorage.getItem(THEME_KEY);
+  const savedTheme = storage.get(THEME_KEY);
   if (savedTheme) {
     setTheme(savedTheme);
   } else {
@@ -987,7 +659,7 @@ function initTheme() {
 if (window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
     // Only auto-switch if user hasn't manually set a preference
-    if (!localStorage.getItem(THEME_KEY)) {
+    if (!storage.get(THEME_KEY)) {
       setTheme(e.matches ? 'light' : 'dark');
     }
   });
@@ -1000,6 +672,10 @@ function init() {
   // Initialize theme
   initTheme();
 
+  // 言語: ?lang= → 保存した選択 → ブラウザーの言語
+  const I18N = globalThis.LFI18n;
+  I18N.use(I18N.initialLanguage(location.search, I18N.readSaved(), navigator.languages), document);
+
   loadOptions();
   renderTable();
   // 初回は空入力で出力クリア
@@ -1011,53 +687,73 @@ function init() {
 
   // Initialize convert button visibility
   updateConvertButtonVisibility();
+  rateOutput.textContent = `${rateValue.value}%`;
 
   // Load diff view preference
-  const savedDiffView = localStorage.getItem('leetforge.diffView');
+  const savedDiffView = storage.get('leetforge.diffView');
   if (savedDiffView === 'true') {
     optDiffView.checked = true;
   }
 
-  // Initialize preset to "basic" on first load
-  initializeDefaultPreset();
-}
-
-function initializeDefaultPreset() {
-  const leetPresetSelect = document.getElementById('leet-preset');
-  const hasExistingMapping = localStorage.getItem(STORAGE_KEY);
-
-  // If no existing mapping data, apply basic preset automatically
-  if (!hasExistingMapping) {
-    leetPresetSelect.value = 'basic';
-    applyPreset('basic');
+  if (!storage.available) {
+    showNotice(t("notice.noStorage"));
   }
 }
-// Tab switching
-const tabs = document.querySelectorAll('.tab');
-const panels = document.querySelectorAll('.panel');
 
-tabs.forEach(tab => {
-  tab.addEventListener('click', () => {
-    const targetPanel = tab.getAttribute('aria-controls');
+// ---------- Language ----------
+const langToggle = document.getElementById('lang-toggle');
 
-    // Update tabs
-    tabs.forEach(t => {
-      t.classList.remove('active');
-      t.setAttribute('aria-selected', 'false');
-    });
-    tab.classList.add('active');
-    tab.setAttribute('aria-selected', 'true');
+// 言語を切り替えたら、辞書から作った表示を全部作り直す（表の行・件数・通知・比較ビュー）
+function applyLanguage(lang) {
+  globalThis.LFI18n.use(lang, document);
+  renderTable();
+  if (lastResult) renderStats(lastResult, inputText.value);
+  if (!noticeEl.hidden) showNotice(t("notice.noStorage"));
+  showMappingStatus("");
+  presetNameEl.textContent = "";
+  presetDescriptionEl.textContent = "";
+  if (optDiffView.checked && !diffContainer.hidden && lastResult) showDiffView();
+  else diffContainer.replaceChildren();
+}
 
-    // Update panels
-    panels.forEach(panel => {
-      panel.classList.remove('active');
-      panel.setAttribute('hidden', '');
-    });
+langToggle.addEventListener('click', () => {
+  const next = globalThis.LFMessages.getLanguage() === 'ja' ? 'en' : 'ja';
+  globalThis.LFI18n.save(next);
+  applyLanguage(next);
+});
 
-    const activePanel = document.getElementById(targetPanel);
-    if (activePanel) {
-      activePanel.classList.add('active');
-      activePanel.removeAttribute('hidden');
+// ---------- Tabs ----------
+// クリックと矢印キー（左右・Home・End）で切り替える。tabindex は選択中のタブだけ 0
+const tabs = Array.from(document.querySelectorAll('.tab'));
+const panels = Array.from(document.querySelectorAll('.panel'));
+
+function activateTab(tab, focus = false) {
+  tabs.forEach(t => {
+    const on = t === tab;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+  });
+  panels.forEach(panel => {
+    const on = panel.id === tab.getAttribute('aria-controls');
+    panel.classList.toggle('active', on);
+    panel.hidden = !on;
+  });
+  if (focus) tab.focus();
+}
+
+tabs.forEach((tab, i) => {
+  tab.addEventListener('click', () => activateTab(tab));
+  tab.addEventListener('keydown', (e) => {
+    const n = tabs.length;
+    let next = null;
+    if (e.key === 'ArrowRight') next = tabs[(i + 1) % n];
+    else if (e.key === 'ArrowLeft') next = tabs[(i - 1 + n) % n];
+    else if (e.key === 'Home') next = tabs[0];
+    else if (e.key === 'End') next = tabs[n - 1];
+    if (next) {
+      e.preventDefault();
+      activateTab(next, true);
     }
   });
 });
