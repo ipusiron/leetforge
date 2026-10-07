@@ -87,7 +87,7 @@ test('README の数（キー・単語・候補・テスト）が計算部とフ�
 test('README の画像がすべて実在し、assets/ の PNG は README から参照されているものだけ。1枚ごとにキャプションがある', () => {
   for (const [name, text, dir] of [['README.md', readme, 'assets/'], ['README.en.md', readmeEn, 'assets/en/']]) {
     const imgs = [...text.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)].map((m) => m[1]).filter((u) => !u.startsWith('http'));
-    assert.equal(imgs.length, 3, `${name}: 画像の参照が ${imgs.length} 件`);
+    assert.equal(imgs.length, 4, `${name}: 画像の参照が ${imgs.length} 件`);
     for (const rel of imgs) {
       assert.ok(rel.startsWith(dir), `${name}: ${rel} は ${dir} の下に置く`);
       assert.ok(fs.existsSync(new URL(rel, ROOT)), `${rel} がない`);

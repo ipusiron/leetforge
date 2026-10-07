@@ -35,6 +35,9 @@ Runs entirely in your browser. Nothing is sent anywhere.
 ![Learn tab (dark mode): where leet comes from, with a timeline](assets/en/screenshot3.png)
 > *Learn tab (dark mode): where leet comes from, with a timeline*
 
+![Check against cracking-tool rules: can the three tools produce password converted with the cupp preset?](assets/en/screenshot4.png)
+> *Check against cracking-tool rules: can the three tools produce password converted with the cupp preset?*
+
 ---
 
 ## ✨ Features
@@ -261,10 +264,12 @@ leetforge/
 │   ├── en/                       # English screens
 │   │   ├── screenshot.png        # Convert (English)
 │   │   ├── screenshot2.png       # Mapping (English)
-│   │   └── screenshot3.png       # Learn (English, dark)
+│   │   ├── screenshot3.png       # Learn (English, dark)
+│   │   └── screenshot4.png       # Check against cracking-tool rules (English)
 │   ├── screenshot.png            # Convert (compare view)
 │   ├── screenshot2.png           # Mapping (hashcat preset)
-│   └── screenshot3.png           # Learn (dark)
+│   ├── screenshot3.png           # Learn (dark)
+│   └── screenshot4.png           # Check against cracking-tool rules
 ├── js/                           # Scripts that do not depend on the screen
 │   ├── i18n.js                   # Language selection and static text replacement
 │   ├── leet-core.js              # Core (mapping, presets, conversion, validation)
