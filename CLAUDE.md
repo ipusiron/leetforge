@@ -28,6 +28,8 @@ Demo: https://ipusiron.github.io/leetforge/
 
 ### Conversion
 
+`LeetCore.coverage(text, result, mapping, options)` checks the converted result against the attack-tool tables (`ATTACK_RULES`): hashcat `leetspeak.rule` (one substitution per rule applied to every occurrence, plus the multi line), John the Ripper `[List.External:Leet]` (exhaustive over the first 10 table letters, cut off at 4,000 combinations) and cupp `[leet]` (whole table at once). It also returns the number of outputs the mapping can produce (product of 1 + candidates) and which tables contain each substitution used. The screen renders this in the "coverage" card and builds the hand-off link to WeirdString Inspector (`#text=…&source=leetforge`).
+
 `LeetCore.convert(text, mapping, { mode, seed, rate, asciiOnly })` scans the input once. At each position it tries word keys (longest first, case-insensitive, whole-word boundaries on ASCII alphanumerics and `_`) and then single-character keys (case-sensitive). Replaced text is never processed again. Candidate choice: `uniform` uses `hash32(seed, position, fnv1a(key)) % n` (stable while typing, reproducible by seed); `roundrobin` cycles per key within one conversion. The result is `{ text, segments, stats }`; the screen renders output, compare view and counts from `segments`.
 
 ### Data model

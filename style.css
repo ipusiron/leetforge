@@ -1424,3 +1424,30 @@ footer{
     flex: 1 1 100px;
   }
 }
+
+/* 攻撃者のルールとの照合 */
+a.btn{text-decoration:none}
+.coverage-list{
+  list-style:none;
+  padding:0;
+  margin:8px 0;
+  display:grid;
+  gap:6px;
+}
+.coverage-list li{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px 12px;
+  padding:8px 12px;
+  background:var(--input-bg);
+  border:1px solid var(--border);
+  border-radius:8px;
+}
+.cov-name{
+  font-weight:600;
+  min-width:12em;
+}
+.cov-result{
+  flex:1 1 200px;
+  overflow-wrap:anywhere;
+}

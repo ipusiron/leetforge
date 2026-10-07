@@ -39,6 +39,7 @@ function showMappingStatus(text, isError = false) {
 // ---------- State ----------
 let mapping = loadMapping();
 let lastResult = null; // 直近の変換結果（区間つき）
+let lastOptions = null; // 直近の変換のオプション（照合で同じ条件を使う）
 
 // ---------- Helpers ----------
 function saveMapping() {
@@ -93,9 +94,11 @@ function doConvert() {
   const rate = Number(rateValue.value);
   const asciiOnly = optAsciiOnly.checked;
 
-  lastResult = Core.convert(text, mapping, { mode, seed, rate, asciiOnly });
+  lastOptions = { mode, seed, rate, asciiOnly };
+  lastResult = Core.convert(text, mapping, lastOptions);
   outputText.value = lastResult.text;
   renderStats(lastResult, text);
+  renderCoverage(text, lastResult);
 
   // Update diff view if enabled
   if (optDiffView.checked) {
@@ -104,6 +107,60 @@ function doConvert() {
 }
 
 const debouncedConvert = debounce(doConvert, 250);
+
+// ---------- 攻撃者のルールとの照合 ----------
+const coverageCard = document.getElementById("coverage-card");
+const covHashcat = document.getElementById("cov-hashcat");
+const covJohn = document.getElementById("cov-john");
+const covCupp = document.getElementById("cov-cupp");
+const covVariants = document.getElementById("cov-variants");
+const covUsed = document.getElementById("cov-used");
+const linkWeirdstring = document.getElementById("link-weirdstring");
+const WEIRDSTRING_URL = "https://ipusiron.github.io/weirdstring-inspector/";
+const WEIRDSTRING_MAX = 7800; // 受け手の共有リンクと同じ目安（URL全体で8,000文字）
+
+// 桁の多い数は 1.2×10^34 の形に、少ない数は3桁区切りにする（言語に依らない）
+function formatCount(digits) {
+  if (digits.length <= 12) return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${digits[0]}.${digits.slice(1, 3)}×10^${digits.length - 1}`;
+}
+
+function renderCoverage(text, result) {
+  if (!text) {
+    // 隠すときは文言も消す（言語を切り替えたときに前の言語の文が残らないように）
+    coverageCard.hidden = true;
+    for (const el of [covHashcat, covJohn, covCupp, covVariants, covUsed]) el.textContent = "";
+    linkWeirdstring.href = WEIRDSTRING_URL;
+    return;
+  }
+  coverageCard.hidden = false;
+  const cov = Core.coverage(text, result, mapping, lastOptions);
+  covHashcat.textContent = cov.hashcat.reachable ? t("cov.hashcatYes", { rules: cov.hashcat.rules.join(", ") }) : t("cov.hashcatNo");
+  const j = cov.john;
+  covJohn.textContent = j.reachable
+    ? t("cov.johnYes", { letters: j.letters, total: formatCount(String(j.total)) })
+    : t(`cov.john.${j.reason}`, { letters: j.letters });
+  covCupp.textContent = cov.cupp.reachable ? t("cov.cuppYes") : t("cov.cuppNo", { expected: cov.cupp.expected });
+  covVariants.textContent = t("cov.variants", { count: formatCount(cov.variants.count), bits: cov.variants.bits, positions: cov.variants.positions });
+  if (cov.identity) {
+    covUsed.textContent = t("cov.identity");
+  } else {
+    const items = cov.used.map((u) => {
+      const tools = [u.hashcat && "hashcat", u.john && "John", u.cupp && "cupp"].filter(Boolean);
+      return t("cov.usedItem", { from: u.from, to: u.to, tools: tools.length ? tools.join(t("cov.toolSep")) : t("cov.none") });
+    });
+    covUsed.textContent = t("cov.used", { list: items.join(t("cov.sep")) }) + (cov.words ? t("cov.words", { n: cov.words }) : "");
+  }
+  // 出力を WeirdString Inspector（Day023）へ。# 以降はサーバーへ送られない
+  const encoded = encodeURIComponent(result.text);
+  if (encoded.length <= WEIRDSTRING_MAX) {
+    linkWeirdstring.href = `${WEIRDSTRING_URL}#text=${encoded}&source=leetforge`;
+    linkWeirdstring.removeAttribute("title");
+  } else {
+    linkWeirdstring.href = WEIRDSTRING_URL;
+    linkWeirdstring.title = t("cov.weirdTooLong");
+  }
+}
 
 function renderStats(result, text) {
   if (!text) {
@@ -707,7 +764,10 @@ const langToggle = document.getElementById('lang-toggle');
 function applyLanguage(lang) {
   globalThis.LFI18n.use(lang, document);
   renderTable();
-  if (lastResult) renderStats(lastResult, inputText.value);
+  if (lastResult) {
+    renderStats(lastResult, inputText.value);
+    renderCoverage(inputText.value, lastResult);
+  }
   if (!noticeEl.hidden) showNotice(t("notice.noStorage"));
   showMappingStatus("");
   presetNameEl.textContent = "";

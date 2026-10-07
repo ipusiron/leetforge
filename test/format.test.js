@@ -31,7 +31,7 @@ test('計算部は DOM・保存領域・乱数を使わない。画面のスク�
     assert.equal(core.includes(token), false, `計算部に ${token} がある`);
   }
   const script = read('script.js');
-  for (const fn of ['Core.convert(', 'Core.applyPreset(', 'Core.parseImport(', 'Core.normalizeMapping(', 'Core.initialMapping(', 'Core.parseSeed(']) {
+  for (const fn of ['Core.convert(', 'Core.coverage(', 'Core.applyPreset(', 'Core.parseImport(', 'Core.normalizeMapping(', 'Core.initialMapping(', 'Core.parseSeed(']) {
     assert.ok(script.includes(fn), `script.js が ${fn} を使っていない`);
   }
   assert.doesNotMatch(script, /Math\.random/);

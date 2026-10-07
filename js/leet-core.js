@@ -367,13 +367,13 @@
         const L = matched.key.length;
         const piece = text.slice(i, i + L);
         if (skip(i)) pushPlain(piece, i);
-        else segments.push({ from: piece, to: pick(matched, i), start: i, end: i + L, changed: true, key: matched.key });
+        else segments.push({ from: piece, to: pick(matched, i), start: i, end: i + L, changed: true, key: matched.key, n: matched.alts.length });
         i += L;
         continue;
       }
       const ch = String.fromCodePoint(text.codePointAt(i));
       const entry = chars.get(ch);
-      if (entry && !skip(i)) segments.push({ from: ch, to: pick(entry, i), start: i, end: i + ch.length, changed: true, key: ch });
+      if (entry && !skip(i)) segments.push({ from: ch, to: pick(entry, i), start: i, end: i + ch.length, changed: true, key: ch, n: entry.alts.length });
       else pushPlain(ch, i);
       i += ch.length;
     }
@@ -384,9 +384,107 @@
     return { text: segments.map((s) => s.to).join(''), segments, stats: { changed, chars: charsChanged, keys: used.size } };
   }
 
+  // ---------- 攻撃者のルールとの照合 ----------
+  // 3つのツールは置換の「使い方」が違う。表が同じでも、どの出力を作れるかは別
+  //   hashcat rules/leetspeak.rule: 1行につき1種類の置換を文字列の全部に当てる（sXY）。multi の1行だけ6種類を同時に当てる
+  //   John the Ripper [List.External:Leet]: 表にある文字を先頭から順に「元のまま／各候補」で総当たり。回す文字は10個まで、組み合わせは4,000を超えると打ち切り
+  //   cupp [leet]: 表の置換を全部いっぺんに当てる（1通りだけ）
+  const ATTACK_RULES = Object.freeze({
+    hashcatSingle: Object.freeze(Object.entries(PRESETS.hashcat.table).flatMap(([k, vals]) => vals.map((v) => ({ line: 's' + k + v, from: k, to: v })))),
+    hashcatMulti: Object.freeze({ line: 'sa@sc<se3si1so0ss$', steps: [['a', '@'], ['c', '<'], ['e', '3'], ['i', '1'], ['o', '0'], ['s', '$']] }),
+    john: PRESETS.john.table,
+    johnMaxLetters: 10,
+    johnMaxTotal: 4000,
+    cupp: PRESETS.cupp.table,
+  });
+
+  const replaceAll = (s, from, to) => s.split(from).join(to);
+
+  // hashcat: どの行（単独の s ルール、または multi の1行）で入力が出力になるか
+  function hashcatRules(text, output) {
+    const hit = [];
+    for (const r of ATTACK_RULES.hashcatSingle) if (replaceAll(text, r.from, r.to) === output) hit.push(r.line);
+    let m = text;
+    for (const [from, to] of ATTACK_RULES.hashcatMulti.steps) m = replaceAll(m, from, to);
+    if (m === output) hit.push(ATTACK_RULES.hashcatMulti.line);
+    return hit;
+  }
+
+  // John: External:Leet が回す位置（先頭から、表にある文字を10個まで・組み合わせ4,000まで）
+  function johnRotors(text) {
+    const J = ATTACK_RULES.john;
+    const positions = new Set();
+    let idx = 0;
+    let total = 1;
+    for (let i = 0; i < text.length; i++) {
+      if (idx >= ATTACK_RULES.johnMaxLetters || total >= ATTACK_RULES.johnMaxTotal) break;
+      const c = text[i];
+      if (J[c]) {
+        positions.add(i);
+        total *= 1 + J[c].length;
+        idx++;
+      }
+    }
+    return { positions, letters: idx, total };
+  }
+
+  function johnCheck(text, segments) {
+    const J = ATTACK_RULES.john;
+    const { positions, letters, total } = johnRotors(text);
+    for (const s of segments) {
+      if (!s.changed) continue;
+      if (s.from.length !== 1 || !J[s.from]) return { reachable: false, reason: s.from.length === 1 ? 'notInTable' : 'word', letters, total };
+      if (!J[s.from].includes(s.to)) return { reachable: false, reason: 'notInTable', letters, total };
+      if (!positions.has(s.start)) return { reachable: false, reason: 'beyondLimit', letters, total };
+    }
+    return { reachable: true, reason: null, letters, total };
+  }
+
+  function cuppExpected(text) {
+    let out = text;
+    for (const [k, vals] of Object.entries(ATTACK_RULES.cupp)) out = replaceAll(out, k, vals[0]);
+    return out;
+  }
+
+  // 入力 text を対応表で変換した結果 result（convert の戻り値）について、3つのツールが同じ出力を作れるか・
+  // この対応表から何通りの出力が作れるか・使った置換がどの表にあるかを返す
+  function coverage(text, result, mapping, options) {
+    const opts = Object.assign({}, options || {}, { rate: 100 });
+    const full = convert(text, mapping, opts);
+    let bits = 0;
+    let count = 1n;
+    for (const s of full.segments) if (s.changed) { bits += Math.log2(1 + s.n); count *= BigInt(1 + s.n); }
+    const seen = new Map();
+    let words = 0;
+    for (const s of result.segments) {
+      if (!s.changed) continue;
+      if (s.from.length !== 1) { words++; continue; }
+      const id = s.from + '→' + s.to;
+      if (seen.has(id)) continue;
+      const inTable = (table) => !!table[s.from] && table[s.from].includes(s.to);
+      seen.set(id, {
+        from: s.from, to: s.to,
+        hashcat: ATTACK_RULES.hashcatSingle.some((r) => r.from === s.from && r.to === s.to),
+        john: inTable(ATTACK_RULES.john),
+        cupp: inTable(ATTACK_RULES.cupp),
+      });
+    }
+    const rules = hashcatRules(text, result.text);
+    const expected = cuppExpected(text);
+    return {
+      variants: { count: count.toString(), bits: Math.round(bits * 100) / 100, positions: full.stats.changed },
+      used: Array.from(seen.values()),
+      words,
+      hashcat: { reachable: rules.length > 0, rules },
+      john: johnCheck(text, result.segments),
+      cupp: { reachable: expected === result.text, expected },
+      identity: result.text === text,
+    };
+  }
+
   root.LeetCore = {
-    VERSION, LIMITS, MODES, DEFAULT_SEED, CATALOG, PRESETS, PRESET_IDS, LOWER, UPPER, DIGITS, WORDS,
+    VERSION, LIMITS, MODES, DEFAULT_SEED, CATALOG, PRESETS, PRESET_IDS, LOWER, UPPER, DIGITS, WORDS, ATTACK_RULES,
     isAscii, isValidKey, isValidAlt, splitAlts, normalizeMapping, cloneMapping, defaultMapping, initialMapping, applyPreset,
-    enabledKeys, presetSummary, parseImport, parseSeed, fnv1a, hash32, convert,
+    enabledKeys, presetSummary, parseImport, parseSeed, fnv1a, hash32, convert, coverage,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

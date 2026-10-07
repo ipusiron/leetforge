@@ -268,6 +268,84 @@ test('parseImport: 構造を検証し、data: などの値はそのまま受け�
   assert.deepEqual(C.parseImport(42).errors, ['notText']);
 });
 
+test('coverage: 置換の候補数 n、変種の数、hashcat・John・cupp の到達と使った置換の内訳', () => {
+  const basic = C.initialMapping();
+  const r = C.convert('password', basic);
+  assert.equal(r.text, 'p455w0rd'); // basic は s→5 も持つ
+  assert.ok(r.segments.filter((s) => s.changed).every((s) => s.n === 1));
+  const cov = C.coverage('password', r, basic);
+  assert.deepEqual(cov.variants, { count: '16', bits: 4, positions: 4 });
+  assert.deepEqual(cov.used.map((u) => [u.from, u.to, u.hashcat, u.john, u.cupp]),
+    [['a', '4', true, true, true], ['s', '5', true, true, true], ['o', '0', true, true, true]]);
+  assert.deepEqual(cov.hashcat, { reachable: false, rules: [] }); // 1行につき1種類の置換なので3種類は作れない
+  assert.deepEqual(cov.john, { reachable: true, reason: null, letters: 4, total: 54 }); // a(3)・s(3)・s(3)・o(2)
+  assert.deepEqual(cov.cupp, { reachable: true, expected: 'p455w0rd' }); // cupp の表を全部当てた結果と同じ
+  assert.equal(cov.identity, false);
+
+  // o→() にすると cupp の1通りからは外れる（John は o→0 しか持たないので表にない）
+  const paren = withKeys(['a', 's', 'o'], { a: ['4'], s: ['5'], o: ['()'] });
+  const r2 = C.convert('password', paren);
+  const cov2 = C.coverage('password', r2, paren);
+  assert.equal(r2.text, 'p455w()rd');
+  assert.deepEqual(cov2.cupp, { reachable: false, expected: 'p455w0rd' });
+  assert.deepEqual(cov2.john, { reachable: false, reason: 'notInTable', letters: 4, total: 54 });
+  assert.equal(cov2.hashcat.reachable, false);
+
+  // hashcat の multi 行（sa@sc<se3si1so0ss$）で一致する例
+  const m = withKeys(['a', 's', 'o'], { a: ['@'], s: ['$'], o: ['0'] });
+  const r3 = C.convert('password', m);
+  const cov3 = C.coverage('password', r3, m);
+  assert.equal(r3.text, 'p@$$w0rd');
+  assert.deepEqual(cov3.hashcat, { reachable: true, rules: ['sa@sc<se3si1so0ss$'] });
+  assert.equal(cov3.john.reachable, true);
+  assert.equal(cov3.cupp.reachable, false);
+
+  // 単独の s ルール。cupp の表のうち banana に効くのは a→4 だけなので cupp も一致
+  const a4 = withKeys(['a'], { a: ['4'] });
+  const cov4 = C.coverage('banana', C.convert('banana', a4), a4);
+  assert.deepEqual(cov4.hashcat, { reachable: true, rules: ['sa4'] });
+  assert.deepEqual(cov4.john, { reachable: true, reason: null, letters: 4, total: 54 });
+  assert.equal(cov4.cupp.reachable, true);
+
+  // John の上限: 回すのは先頭から、組み合わせが 4,000 以上になったら打ち切り（a は 3 通りなので 8 文字目まで）
+  assert.deepEqual(C.coverage('a'.repeat(8), C.convert('a'.repeat(8), a4), a4).john, { reachable: true, reason: null, letters: 8, total: 6561 });
+  assert.deepEqual(C.coverage('a'.repeat(9), C.convert('a'.repeat(9), a4), a4).john, { reachable: false, reason: 'beyondLimit', letters: 8, total: 6561 });
+  // 文字数の上限 10（b は 2 通りなので 2^10 = 1024 < 4000。先に 10 文字で止まる）
+  const b8 = withKeys(['b'], { b: ['8'] });
+  assert.deepEqual(C.coverage('b'.repeat(11), C.convert('b'.repeat(11), b8), b8).john, { reachable: false, reason: 'beyondLimit', letters: 10, total: 1024 });
+
+  // 表にない置換・単語の置換
+  const e = withKeys(['e'], { e: ['ə'] });
+  const cov5 = C.coverage('eel', C.convert('eel', e), e);
+  assert.deepEqual(cov5.used, [{ from: 'e', to: 'ə', hashcat: false, john: false, cupp: false }]);
+  assert.equal(cov5.john.reason, 'notInTable');
+  const words = C.applyPreset(C.defaultMapping(), 'words');
+  const cov6 = C.coverage('great', C.convert('great', words), words);
+  assert.equal(cov6.words, 1);
+  assert.equal(cov6.john.reason, 'word');
+  assert.equal(cov6.hashcat.reachable, false);
+
+  // 変換率で飛ばした位置も変種の数に入る（率 100 で数える）。何も置換していなければ identity
+  const r7 = C.convert('password', basic, { rate: 0 });
+  const cov7 = C.coverage('password', r7, basic, { rate: 0 });
+  assert.equal(cov7.identity, true);
+  assert.equal(cov7.variants.count, '16');
+  // 大きな数も文字列で返す
+  const adv = withKeys(C.LOWER);
+  const big = C.coverage('the quick brown fox jumps over the lazy dog', C.convert('the quick brown fox jumps over the lazy dog', adv), adv);
+  assert.ok(big.variants.count.length > 20 && big.variants.bits > 60, JSON.stringify(big.variants));
+});
+
+test('ATTACK_RULES は PRESETS の表から作られ、hashcat の行は rules/leetspeak.rule の16行＋multi と同じ', () => {
+  assert.deepEqual(C.ATTACK_RULES.hashcatSingle.map((r) => r.line),
+    ['sa4', 'sa@', 'sb6', 'sc<', 'sc{', 'se3', 'sg9', 'si1', 'si!', 'so0', 'sq9', 'ss5', 'ss$', 'st7', 'st+', 'sx%']);
+  assert.equal(C.ATTACK_RULES.hashcatMulti.line, 'sa@sc<se3si1so0ss$');
+  assert.equal(C.ATTACK_RULES.john, C.PRESETS.john.table);
+  assert.equal(C.ATTACK_RULES.cupp, C.PRESETS.cupp.table);
+  assert.equal(C.ATTACK_RULES.johnMaxLetters, 10);
+  assert.equal(C.ATTACK_RULES.johnMaxTotal, 4000);
+});
+
 test('parseSeed: 空と数でない値は既定値 1337、整数に丸めて 32 ビットに収める', () => {
   assert.equal(C.parseSeed(''), 1337);
   assert.equal(C.parseSeed('abc'), 1337);

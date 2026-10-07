@@ -155,6 +155,23 @@
           </button>
         </div>
       </div>
+
+      <div class="card mt" id="coverage-card" hidden>
+        <div class="card-header">
+          <h3 data-i18n="cov.title">攻撃者のルールとの照合</h3>
+          <div class="controls-inline">
+            <a id="link-weirdstring" class="btn ghost" href="https://ipusiron.github.io/weirdstring-inspector/" target="_blank" rel="noopener noreferrer" data-i18n="cov.weird">WeirdString Inspectorで検査</a>
+          </div>
+        </div>
+        <p class="hint" data-i18n="cov.lead">辞書攻撃ツールは、表にある置換を元の語に当てて候補を作ります。いまの出力を、3つのツールの既定の表で作れるかを調べます。</p>
+        <ul class="coverage-list">
+          <li><span class="cov-name">hashcat leetspeak.rule</span><span class="cov-result" id="cov-hashcat"></span></li>
+          <li><span class="cov-name">John the Ripper Leet</span><span class="cov-result" id="cov-john"></span></li>
+          <li><span class="cov-name">cupp 1337 mode</span><span class="cov-result" id="cov-cupp"></span></li>
+        </ul>
+        <p class="hint" id="cov-variants"></p>
+        <p class="hint" id="cov-used"></p>
+      </div>
     </section>
 
     <!-- 座学 -->
