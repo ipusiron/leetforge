@@ -31,8 +31,19 @@ test('計算部は DOM・保存領域・乱数を使わない。画面のスク�
     assert.ok(script.includes(fn), `script.js が ${fn} を使っていない`);
   }
   assert.doesNotMatch(script, /Math\.random/);
-  assert.doesNotMatch(script, /document\.write|eval\(/);
+  assert.doesNotMatch(script, /innerHTML|outerHTML|document\.write|eval\(/);
+  assert.doesNotMatch(script, /style\.display/);
   assert.doesNotMatch(script, /setAttribute\('style'/);
+});
+
+test('CSS: 未定義の変数・無限のアニメーション・td のバッジ規則がなく、動きを減らす設定に従う', () => {
+  const css = read('style.css');
+  assert.equal(css.includes('--accent-secondary'), false);
+  assert.doesNotMatch(css, /infinite/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /\[hidden\]\{display:none !important\}/);
+  assert.equal(css.includes('.word-key'), false);
+  assert.equal(css.includes('.char-highlight'), false);
 });
 
 test('改行コードは LF（リポジトリーの既定）', () => {

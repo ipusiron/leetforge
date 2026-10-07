@@ -20,6 +20,7 @@
   --btn-bg-1: #202735;
   --btn-bg-2: #1a2230;
   --error-text: #ff9aa2;
+  --accent-text: #818cf8;
 }
 
 [data-theme="light"] {
@@ -42,6 +43,7 @@
   --btn-bg-1: #475569;
   --btn-bg-2: #334155;
   --error-text: #b91c1c;
+  --accent-text: #4f46e5;
 }
 
 /* Auto theme based on system preference */
@@ -65,10 +67,20 @@
     --btn-bg-1: #e2e8f0;
     --btn-bg-2: #cbd5e1;
     --error-text: #b91c1c;
+    --accent-text: #4f46e5;
   }
 }
 
 *{box-sizing:border-box}
+[hidden]{display:none !important}
+
+/* 動きを減らす設定のときはアニメーションと遷移を止める */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 
 /* Animations */
 @keyframes pulse {
@@ -260,10 +272,6 @@ main{
   padding:20px;
   margin-bottom:24px;
   transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
-}
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 15px 40px rgba(0,0,0,.4);
 }
 .card-header{
   display:flex;
@@ -625,30 +633,25 @@ textarea[readonly]{opacity:.9}
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Noto Sans Mono", monospace;
 }
 
-[data-theme="light"] .mono {
-  color: #0f172a;
-  font-weight: 500;
-  background: #f0f9ff;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Word keys styling */
-.word-key {
-  background: linear-gradient(135deg, #34d399, #22c55e);
-  color: #ffffff;
-  padding: 3px 8px;
+/* キーのバッジ（td ではなく内側の span に当てる。td の配色規則に負けない） */
+.key-badge {
+  display: inline-block;
+  padding: 2px 8px;
   border-radius: 6px;
-  font-weight: 600;
-  font-size: 13px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  line-height: 1.5;
 }
-
-[data-theme="light"] .word-key {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: #ffffff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+.key-badge.char {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Noto Sans Mono", monospace;
+  font-size: 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.key-badge.word {
+  background: linear-gradient(135deg, #34d399, #22c55e);
+  color: #0b0d10;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 /* Guide/座学 tab specific styles */
@@ -685,7 +688,7 @@ textarea[readonly]{opacity:.9}
   top: 0;
   bottom: 0;
   width: 2px;
-  background: linear-gradient(to bottom, var(--accent), var(--accent-secondary));
+  background: linear-gradient(to bottom, var(--accent), var(--accent-2));
 }
 
 .timeline-item {
@@ -711,7 +714,7 @@ textarea[readonly]{opacity:.9}
 
 .timeline-year {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 14px;
   min-width: 80px;
   padding-top: 2px;
@@ -780,7 +783,7 @@ textarea[readonly]{opacity:.9}
 }
 
 .rule-item .arrow {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 16px;
   text-align: center;
 }
@@ -789,7 +792,7 @@ textarea[readonly]{opacity:.9}
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 16px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .rule-item .reason {
@@ -1193,7 +1196,7 @@ dialog::backdrop{
   animation: fadeIn 0.4s ease;
 }
 .diff-arrow {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 24px;
   display: flex;
   align-items: center;
@@ -1218,16 +1221,17 @@ dialog::backdrop{
   background: linear-gradient(90deg, var(--code-bg), rgba(79,70,229,0.05));
 }
 
-/* Highlighted character */
-.char-highlight {
-  color: #fff;
-  background: linear-gradient(135deg, var(--accent), #7c3aed);
-  padding: 2px 4px;
+/* 比較ビューの置換した区間（変換前は薄く、変換後は濃く）。動かさない */
+mark.seg {
+  color: inherit;
+  background: rgba(79,70,229,.18);
   border-radius: 4px;
-  font-weight: bold;
-  margin: 0 1px;
-  display: inline-block;
-  animation: pulse 2s ease infinite;
+  padding: 1px 2px;
+}
+mark.seg.to {
+  color: #ffffff;
+  background: var(--accent);
+  font-weight: 600;
 }
 
 /* Theme toggle button styles */
@@ -1285,6 +1289,19 @@ dialog::backdrop{
   margin-top: 8px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 変換率のスライダー */
+#rate-field input[type="range"] {
+  min-width: 120px;
+  width: 140px;
+  accent-color: var(--accent);
+}
+#rate-output {
+  min-width: 3.5em;
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 640px) {

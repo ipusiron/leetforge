@@ -89,8 +89,12 @@ function doConvert() {
   if (!isRealtime && !seedLocked) sessionSeed = randomSeed();
   const seed = seedLocked ? Core.parseSeed(seedValue.value) : sessionSeed;
 
-  lastResult = Core.convert(text, mapping, { mode, seed });
+  const rate = Number(rateValue.value);
+  const asciiOnly = optAsciiOnly.checked;
+
+  lastResult = Core.convert(text, mapping, { mode, seed, rate, asciiOnly });
   outputText.value = lastResult.text;
+  renderStats(lastResult, text);
 
   // Update diff view if enabled
   if (optDiffView.checked) {
@@ -100,12 +104,21 @@ function doConvert() {
 
 const debouncedConvert = debounce(doConvert, 250);
 
+function renderStats(result, text) {
+  if (!text) {
+    convertStats.textContent = "";
+    return;
+  }
+  const st = result.stats;
+  convertStats.textContent = `置換 ${st.changed}カ所（${st.chars}文字）・使ったキー ${st.keys}種・出力 ${result.text.length}文字`;
+}
+
 // ---------- Mapping Table ----------
 const tbody = document.getElementById("mapping-tbody");
 const rowTemplate = document.getElementById("row-template");
 
 function renderTable() {
-  tbody.innerHTML = "";
+  tbody.replaceChildren();
   // stable sort by key (localeCompare)
   const keys = Object.keys(mapping.map).sort((a,b)=>a.localeCompare(b));
   for (const key of keys) {
@@ -116,10 +129,13 @@ function renderTable() {
     const altsEl = row.querySelector(".cell-alts");
 
     enabledEl.checked = !!entry.enabled;
-    keyEl.textContent = key;
+    const badge = document.createElement('span');
+    badge.className = Array.from(key).length > 1 ? 'key-badge word' : 'key-badge char';
+    badge.textContent = key;
+    keyEl.replaceChildren(badge);
 
     // Create alternatives list with individual checkboxes
-    altsEl.innerHTML = '';
+    altsEl.replaceChildren();
     altsEl.className = 'alternatives-list';
 
     const normalizedAlts = entry.alts;
@@ -153,15 +169,6 @@ function renderTable() {
       altItem.appendChild(valueSpan);
       altsEl.appendChild(altItem);
     });
-
-    // Style word keys differently
-    if (key.length > 1) {
-      keyEl.classList.add('word-key');
-      keyEl.classList.remove('mono');
-    } else {
-      keyEl.classList.add('mono');
-      keyEl.classList.remove('word-key');
-    }
 
     // events
     enabledEl.addEventListener("change", () => {
@@ -419,6 +426,10 @@ const optSeedLock = document.getElementById("opt-seed-lock");
 const seedValue   = document.getElementById("seed-value");
 const seedField   = document.getElementById("seed-field");
 const selectMode  = document.getElementById("select-mode");
+const rateValue   = document.getElementById("rate-value");
+const rateOutput  = document.getElementById("rate-output");
+const optAsciiOnly = document.getElementById("opt-ascii-only");
+const convertStats = document.getElementById("convert-stats");
 
 btnConvert.addEventListener("click", () => {
   doConvert();
@@ -489,6 +500,13 @@ optSeedLock.addEventListener("change", () => {
 seedValue.addEventListener("input", () => {
   if (optRealtime.checked) debouncedConvert();
 });
+rateValue.addEventListener("input", () => {
+  rateOutput.textContent = `${rateValue.value}%`;
+  if (optRealtime.checked) debouncedConvert();
+});
+optAsciiOnly.addEventListener("change", () => {
+  if (optRealtime.checked) debouncedConvert();
+});
 
 // persist simple options to localStorage
 const LS_OPT_KEY = "leetforge.options";
@@ -508,6 +526,8 @@ function loadOptions() {
     }
     if (typeof o.seedValue === "string") seedValue.value = o.seedValue;
     if (o.mode === "uniform" || o.mode === "roundrobin") selectMode.value = o.mode;
+    if (typeof o.rate === "number" && o.rate >= 0 && o.rate <= 100) rateValue.value = String(o.rate);
+    if (typeof o.asciiOnly === "boolean") optAsciiOnly.checked = o.asciiOnly;
   } catch {}
 }
 function saveOptions() {
@@ -515,13 +535,15 @@ function saveOptions() {
     realtime: optRealtime.checked,
     seedLock: optSeedLock.checked,
     seedValue: seedValue.value,
-    mode: selectMode.value
+    mode: selectMode.value,
+    rate: Number(rateValue.value),
+    asciiOnly: optAsciiOnly.checked
   };
   storage.set(LS_OPT_KEY, JSON.stringify(o));
 }
 // Update convert button visibility based on realtime mode
 function updateConvertButtonVisibility() {
-  btnConvert.style.display = optRealtime.checked ? 'none' : 'inline-flex';
+  btnConvert.hidden = optRealtime.checked;
 }
 
 optRealtime.addEventListener("change", () => {
@@ -530,80 +552,70 @@ optRealtime.addEventListener("change", () => {
   if (optRealtime.checked) debouncedConvert();
 });
 
-for (const el of [optSeedLock, seedValue, selectMode]) {
+for (const el of [optSeedLock, seedValue, selectMode, rateValue, optAsciiOnly]) {
   el.addEventListener("change", saveOptions);
   el.addEventListener("input", saveOptions);
 }
 
 // ---------- Diff View Feature ----------
+// 変換の区間（segments）から変換前と変換後を並べて描く。置換の長さが変わっても対応がずれない
 const optDiffView = document.getElementById("opt-diff-view");
 const diffContainer = document.createElement('div');
 diffContainer.className = 'diff-view';
-diffContainer.style.display = 'none';
+diffContainer.hidden = true;
 
 function updateDiffView() {
-  if (optDiffView.checked && inputText.value && outputText.value) {
-    showDiffView();
-  } else {
+  if (!(optDiffView.checked && inputText.value)) {
     hideDiffView();
+    return;
   }
+  // 入力と結果がずれていたら変換し直す（doConvert が描き直す）
+  if (!lastResult || lastResult.segments.map(seg => seg.from).join('') !== inputText.value) {
+    doConvert();
+    return;
+  }
+  showDiffView();
+}
+
+function segmentNode(seg, side) {
+  const text = side === 'from' ? seg.from : seg.to;
+  if (!seg.changed) return document.createTextNode(text);
+  const mark = document.createElement('mark');
+  mark.className = `seg ${side}`;
+  mark.textContent = text;
+  mark.title = `${seg.from} → ${seg.to}`;
+  return mark;
 }
 
 function showDiffView() {
   const parent = outputText.parentElement;
   const insertBefore = parent.querySelector('.diff-toggle');
-
   if (!parent.contains(diffContainer)) {
     parent.insertBefore(diffContainer, insertBefore);
   }
 
-  // Create diff elements safely without innerHTML
-  diffContainer.innerHTML = '';
-
   const originalDiv = document.createElement('div');
   originalDiv.className = 'diff-text original';
-  originalDiv.textContent = inputText.value;
-
+  originalDiv.setAttribute('aria-label', '変換前');
   const arrowDiv = document.createElement('div');
   arrowDiv.className = 'diff-arrow';
   arrowDiv.textContent = '→';
-
+  arrowDiv.setAttribute('aria-hidden', 'true');
   const convertedDiv = document.createElement('div');
   convertedDiv.className = 'diff-text converted';
-  convertedDiv.innerHTML = highlightChanges(inputText.value, outputText.value);
-
-  diffContainer.appendChild(originalDiv);
-  diffContainer.appendChild(arrowDiv);
-  diffContainer.appendChild(convertedDiv);
-  diffContainer.style.display = 'grid';
-  outputText.style.display = 'none';
+  convertedDiv.setAttribute('aria-label', '変換後');
+  for (const seg of lastResult.segments) {
+    originalDiv.appendChild(segmentNode(seg, 'from'));
+    convertedDiv.appendChild(segmentNode(seg, 'to'));
+  }
+  diffContainer.replaceChildren(originalDiv, arrowDiv, convertedDiv);
+  diffContainer.hidden = false;
+  outputText.hidden = true;
 }
 
 function hideDiffView() {
-  diffContainer.style.display = 'none';
-  outputText.style.display = 'block';
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function highlightChanges(original, converted) {
-  const origChars = [...original];
-  const convChars = [...converted];
-  let result = [];
-
-  for (let i = 0; i < origChars.length; i++) {
-    if (i < convChars.length && origChars[i] !== convChars[i]) {
-      result.push(`<span class="char-highlight">${escapeHtml(convChars[i])}</span>`);
-    } else if (i < convChars.length) {
-      result.push(escapeHtml(convChars[i]));
-    }
-  }
-
-  return result.join('');
+  diffContainer.hidden = true;
+  outputText.hidden = false;
 }
 
 optDiffView.addEventListener('change', () => {
@@ -677,6 +689,7 @@ function init() {
 
   // Initialize convert button visibility
   updateConvertButtonVisibility();
+  rateOutput.textContent = `${rateValue.value}%`;
 
   // Load diff view preference
   const savedDiffView = storage.get('leetforge.diffView');

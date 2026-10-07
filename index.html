@@ -99,6 +99,7 @@
               <span>比較ビュー</span>
             </label>
           </div>
+          <div class="hint" id="convert-stats" aria-live="polite"></div>
         </div>
       </div>
 
@@ -128,6 +129,17 @@
               <option value="uniform">一様ランダム</option>
               <option value="roundrobin">ラウンドロビン</option>
             </select>
+          </label>
+
+          <label class="field" id="rate-field">
+            <span>変換率</span>
+            <input id="rate-value" type="range" min="0" max="100" step="5" value="100" />
+            <output id="rate-output" for="rate-value">100%</output>
+          </label>
+
+          <label class="toggle">
+            <input type="checkbox" id="opt-ascii-only" />
+            <span>ASCIIのみ</span>
           </label>
 
           <div class="spacer"></div>
@@ -535,7 +547,7 @@
   <template id="row-template">
     <tr>
       <td class="center"><input type="checkbox" class="cell-enabled" /></td>
-      <td class="mono cell-key"></td>
+      <td class="cell-key"></td>
       <td class="cell-alts"></td>
       <td class="center">
         <button class="btn xs" data-action="edit">編集</button>

@@ -35,7 +35,7 @@ test('主要な要素の id がそろっている', () => {
   const ids = [
     'theme-toggle', 'tab-convert', 'tab-mapping', 'tab-guide', 'panel-convert', 'panel-mapping', 'panel-guide',
     'input-text', 'output-text', 'btn-clear-input', 'btn-copy-output', 'opt-diff-view', 'opt-realtime', 'opt-seed-lock',
-    'seed-field', 'seed-value', 'select-mode', 'btn-convert',
+    'seed-field', 'seed-value', 'select-mode', 'btn-convert', 'rate-value', 'rate-output', 'opt-ascii-only', 'convert-stats',
     'btn-add-key', 'leet-preset', 'btn-apply-preset', 'btn-export-json', 'file-import-json', 'btn-reset-defaults', 'mapping-table', 'mapping-tbody',
     'preset-dialog', 'preset-form', 'preset-name', 'preset-description', 'preset-enable-count', 'preset-disable-count', 'preset-cancel', 'preset-confirm',
     'edit-dialog', 'edit-form', 'dlg-key', 'dlg-alts', 'dlg-enabled', 'dlg-error', 'dlg-cancel', 'dlg-delete', 'dlg-save', 'row-template',
