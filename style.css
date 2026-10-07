@@ -21,13 +21,14 @@
   --btn-bg-2: #1a2230;
   --error-text: #ff9aa2;
   --accent-text: #818cf8;
+  --link: #9ac1ff;
 }
 
 [data-theme="light"] {
   /* Light mode colors */
   --bg: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   --card: #ffffff;
-  --muted: #64748b;
+  --muted: #475569;
   --text: #1e293b;
   --accent: #4f46e5;
   --accent-2: #22c55e;
@@ -44,6 +45,7 @@
   --btn-bg-2: #334155;
   --error-text: #b91c1c;
   --accent-text: #4f46e5;
+  --link: #1d4ed8;
 }
 
 /* Auto theme based on system preference */
@@ -51,7 +53,7 @@
   :root:not([data-theme="dark"]) {
     --bg: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
     --card: #ffffff;
-    --muted: #64748b;
+    --muted: #475569;
     --text: #1e293b;
     --accent: #4f46e5;
     --accent-2: #22c55e;
@@ -64,15 +66,18 @@
     --input-focus-bg: #ffffff;
     --code-bg: #f8fafc;
     --hover-bg: #f1f5f9;
-    --btn-bg-1: #e2e8f0;
-    --btn-bg-2: #cbd5e1;
+    --btn-bg-1: #475569;
+    --btn-bg-2: #334155;
     --error-text: #b91c1c;
     --accent-text: #4f46e5;
+    --link: #1d4ed8;
   }
 }
 
 *{box-sizing:border-box}
 [hidden]{display:none !important}
+button, input, select, textarea, output { font: inherit; }
+:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 2px; }
 
 /* 動きを減らす設定のときはアニメーションと遷移を止める */
 @media (prefers-reduced-motion: reduce) {
@@ -147,7 +152,7 @@ h1{
 }
 
 [data-theme="light"] .tool-description {
-  color: #64748b;
+  color: var(--muted);
 }
 
 .tabs{
@@ -160,7 +165,8 @@ h1{
   background:transparent;
   color:var(--muted);
   border:1px solid var(--border);
-  padding:10px 14px;
+  padding:10px 16px;
+  min-height:44px;
   border-radius:999px;
   cursor:pointer;
   display:flex;
@@ -245,6 +251,12 @@ main{
   }
   .field, .toggle {
     width: 100%;
+    min-width: 0;
+  }
+  .field input, .field select {
+    min-width: 0;
+    width: 100%;
+    flex: 1 1 auto;
   }
   .btn.primary {
     width: 100%;
@@ -275,12 +287,15 @@ main{
 }
 .card-header{
   display:flex;
+  flex-wrap:wrap;
   align-items:center;
   justify-content:space-between;
   gap:12px;
   margin-bottom:8px;
 }
 .card h2,.card h3{margin:0}
+.card-header h2{min-width:0; overflow-wrap:anywhere}
+@media (min-width: 769px){ #panel-mapping .card-header h2{flex:0 0 auto} }
 
 .controls-inline{
   display:flex;
@@ -308,7 +323,6 @@ textarea{
   transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
 }
 textarea:focus {
-  outline: none;
   border-color: var(--accent);
   background: var(--input-focus-bg);
 }
@@ -347,15 +361,13 @@ textarea[readonly]{opacity:.9}
   cursor: pointer;
 }
 
-[data-theme="light"] input[type="checkbox"] {
+input[type="checkbox"] {
   accent-color: var(--accent);
-  transform: scale(1.1);
-}
-
-[data-theme="light"] .table input[type="checkbox"] {
   width: 18px;
   height: 18px;
+  margin: 0;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .toggle:hover {
   background: var(--hover-bg);
@@ -380,9 +392,15 @@ textarea[readonly]{opacity:.9}
   background:transparent;
   color:var(--text);
   border:none;
-  outline:none;
   min-width:160px;
 }
+/* フォーカスの輪は丸い枠（.field／.toggle）に出し、内側の部品には出さない */
+.field input:focus-visible,.field select:focus-visible,.toggle input:focus-visible{outline:none}
+.field:focus-within,.toggle:focus-within{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(79,70,229,.35);
+}
+.field > span{white-space:nowrap}
 
 /* Select styling for better visibility */
 .field select {
@@ -429,7 +447,7 @@ textarea[readonly]{opacity:.9}
 }
 
 [data-theme="light"] .field select option[value=""] {
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 /* Ensure select shows proper text color when no option is selected */
@@ -438,7 +456,7 @@ textarea[readonly]{opacity:.9}
 }
 
 [data-theme="light"] .field select:invalid {
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 [data-theme="light"] .field select {
@@ -563,7 +581,8 @@ textarea[readonly]{opacity:.9}
   border-color: #ef4444;
 }
 .btn.xs{
-  padding:4px 10px;
+  padding:6px 12px;
+  min-height:32px;
   font-size:.9rem;
 }
 
@@ -938,7 +957,7 @@ textarea[readonly]{opacity:.9}
 [data-theme="light"] .rule-item .reason,
 [data-theme="light"] .use-case-content li,
 [data-theme="light"] .practice-section li {
-  color: #64748b;
+  color: var(--muted);
 }
 
 [data-theme="light"] .rule-item,
@@ -1016,23 +1035,18 @@ textarea[readonly]{opacity:.9}
 .alt-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  min-height: 32px;
   background: var(--input-bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 6px;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .alt-item:hover {
   background: var(--hover-bg);
-}
-
-.alt-item input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  cursor: pointer;
 }
 
 .alt-item .alt-value {
@@ -1043,12 +1057,9 @@ textarea[readonly]{opacity:.9}
   user-select: none;
 }
 
-.alt-item.disabled {
-  opacity: 0.6;
-}
-
 .alt-item.disabled .alt-value {
   color: var(--muted);
+  text-decoration: line-through;
 }
 
 .file-label{
@@ -1234,25 +1245,33 @@ mark.seg.to {
   font-weight: 600;
 }
 
-/* Theme toggle button styles */
-.theme-toggle {
+/* ヘッダー右上の道具（配色の切り替え）。広い画面では見出しの右に浮かせ、狭い画面では見出しの上の行に置く */
+.app-header {
+  position: relative;
+}
+.header-tools {
   position: absolute;
   top: 24px;
-  right: calc(50% - 550px); /* Align with 1100px max-width content */
+  right: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.theme-toggle {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 8px;
+  padding: 11px;
+  min-width: 44px;
+  min-height: 44px;
   cursor: pointer;
   transition: all 0.3s ease;
-  z-index: 1000;
   box-shadow: var(--shadow);
 }
-
-/* Responsive positioning */
-@media (max-width: 1140px) {
-  .theme-toggle {
-    right: 20px;
+@media (max-width: 768px) {
+  .header-tools {
+    position: static;
+    margin-bottom: 4px;
   }
 }
 
@@ -1321,7 +1340,7 @@ footer{
   color:var(--muted);
   text-align:center;
 }
-.footer a{color:#9ac1ff; text-decoration:none}
+.footer a{color:var(--link); text-decoration:underline}
 .footer a:hover{text-decoration:underline}
 
 /* 通知（保存領域が使えない等）と、対応表の操作の結果 */
@@ -1343,4 +1362,33 @@ footer{
 }
 .status.error{
   color:var(--error-text);
+}
+
+/* 対応表の列幅（th の style 属性から移した） */
+.table .col-enabled{width:72px}
+.table .col-key{width:120px}
+.table .col-actions{width:180px}
+
+/* 狭い画面のマッピング: 見出しの下に操作を並べ、プリセットの選択肢は1行を使う */
+@media (max-width: 768px) {
+  #panel-mapping .card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .controls-inline {
+    width: 100%;
+  }
+  .preset-controls {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .preset-controls .field {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .preset-controls .field select {
+    min-width: 0;
+    width: 100%;
+    flex: 1 1 auto;
+  }
 }

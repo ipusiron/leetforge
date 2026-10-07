@@ -129,6 +129,7 @@ function renderTable() {
     const altsEl = row.querySelector(".cell-alts");
 
     enabledEl.checked = !!entry.enabled;
+    enabledEl.setAttribute('aria-label', `${key} を有効にする`);
     const badge = document.createElement('span');
     badge.className = Array.from(key).length > 1 ? 'key-badge word' : 'key-badge char';
     badge.textContent = key;
@@ -140,8 +141,10 @@ function renderTable() {
 
     const normalizedAlts = entry.alts;
     normalizedAlts.forEach((alt, index) => {
-      const altItem = document.createElement('div');
+      // label で包むので、文字の部分を押してもチェックが切り替わる（タップの面も広くなる）
+      const altItem = document.createElement('label');
       altItem.className = `alt-item ${alt.enabled ? '' : 'disabled'}`;
+      altItem.title = `${key} → ${alt.value}`;
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -160,10 +163,6 @@ function renderTable() {
       const valueSpan = document.createElement('span');
       valueSpan.className = 'alt-value';
       valueSpan.textContent = alt.value;
-      valueSpan.addEventListener('click', () => {
-        checkbox.checked = !checkbox.checked;
-        checkbox.dispatchEvent(new Event('change'));
-      });
 
       altItem.appendChild(checkbox);
       altItem.appendChild(valueSpan);
@@ -702,32 +701,38 @@ function init() {
   }
 }
 
-// Tab switching
-const tabs = document.querySelectorAll('.tab');
-const panels = document.querySelectorAll('.panel');
+// ---------- Tabs ----------
+// クリックと矢印キー（左右・Home・End）で切り替える。tabindex は選択中のタブだけ 0
+const tabs = Array.from(document.querySelectorAll('.tab'));
+const panels = Array.from(document.querySelectorAll('.panel'));
 
-tabs.forEach(tab => {
-  tab.addEventListener('click', () => {
-    const targetPanel = tab.getAttribute('aria-controls');
+function activateTab(tab, focus = false) {
+  tabs.forEach(t => {
+    const on = t === tab;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+  });
+  panels.forEach(panel => {
+    const on = panel.id === tab.getAttribute('aria-controls');
+    panel.classList.toggle('active', on);
+    panel.hidden = !on;
+  });
+  if (focus) tab.focus();
+}
 
-    // Update tabs
-    tabs.forEach(t => {
-      t.classList.remove('active');
-      t.setAttribute('aria-selected', 'false');
-    });
-    tab.classList.add('active');
-    tab.setAttribute('aria-selected', 'true');
-
-    // Update panels
-    panels.forEach(panel => {
-      panel.classList.remove('active');
-      panel.setAttribute('hidden', '');
-    });
-
-    const activePanel = document.getElementById(targetPanel);
-    if (activePanel) {
-      activePanel.classList.add('active');
-      activePanel.removeAttribute('hidden');
+tabs.forEach((tab, i) => {
+  tab.addEventListener('click', () => activateTab(tab));
+  tab.addEventListener('keydown', (e) => {
+    const n = tabs.length;
+    let next = null;
+    if (e.key === 'ArrowRight') next = tabs[(i + 1) % n];
+    else if (e.key === 'ArrowLeft') next = tabs[(i - 1 + n) % n];
+    else if (e.key === 'Home') next = tabs[0];
+    else if (e.key === 'End') next = tabs[n - 1];
+    if (next) {
+      e.preventDefault();
+      activateTab(next, true);
     }
   });
 });

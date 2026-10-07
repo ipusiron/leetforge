@@ -3,50 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
-  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="X-Frame-Options" content="DENY" />
-  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self';" />
+  <meta name="referrer" content="no-referrer" />
+  <link rel="icon" href="data:," />
   <title>LeetForge - リートコンバーター</title>
   <meta name="description" content="Convert plain text into 1337 (leet) speak with customizable mappings.">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Theme toggle button -->
-  <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="5"></circle>
-      <line x1="12" y1="1" x2="12" y2="3"></line>
-      <line x1="12" y1="21" x2="12" y2="23"></line>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-      <line x1="1" y1="12" x2="3" y2="12"></line>
-      <line x1="21" y1="12" x2="23" y2="12"></line>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-    </svg>
-    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-    </svg>
-  </button>
+  <noscript><p class="notice">このツールはJavaScriptで動きます。JavaScriptを有効にしてください。</p></noscript>
   <header class="app-header">
+    <div class="header-tools">
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="配色を切り替える">
+        <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+    </div>
     <h1>LeetForge <span class="sub">リートコンバーター</span></h1>
     <p class="tool-description">テキストを1337（リート）表記に変換する教育用ツール</p>
     <nav class="tabs" role="tablist" aria-label="LeetForge Tabs">
-      <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-convert" id="tab-convert">
+      <button class="tab active" role="tab" aria-selected="true" aria-controls="panel-convert" id="tab-convert" tabindex="0">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="16 18 22 12 16 6"></polyline>
           <polyline points="8 6 2 12 8 18"></polyline>
         </svg>
         <span>コンバート</span>
       </button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="panel-mapping" id="tab-mapping">
+      <button class="tab" role="tab" aria-selected="false" aria-controls="panel-mapping" id="tab-mapping" tabindex="-1">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
         </svg>
         <span>マッピング</span>
       </button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="panel-guide" id="tab-guide">
+      <button class="tab" role="tab" aria-selected="false" aria-controls="panel-guide" id="tab-guide" tabindex="-1">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"></circle>
           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
@@ -64,7 +65,7 @@
       <div class="grid grid-2">
         <div class="card">
           <div class="card-header">
-            <h2>入力テキスト</h2>
+            <h2 id="label-input">入力テキスト</h2>
             <div class="controls-inline">
               <button id="btn-clear-input" class="btn ghost" title="入力をクリア">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -75,13 +76,13 @@
               </button>
             </div>
           </div>
-          <textarea id="input-text" placeholder="ここにテキストを入力…（最大 50,000 文字）" maxlength="50000"></textarea>
+          <textarea id="input-text" aria-labelledby="label-input" placeholder="ここにテキストを入力…（最大 50,000 文字）" maxlength="50000"></textarea>
           <div class="hint">未定義の文字は変換せず、そのまま出力します。</div>
         </div>
 
         <div class="card">
           <div class="card-header">
-            <h2>出力テキスト</h2>
+            <h2 id="label-output">出力テキスト</h2>
             <div class="controls-inline">
               <button id="btn-copy-output" class="btn" title="出力をコピー">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -92,7 +93,7 @@
               </button>
             </div>
           </div>
-          <textarea id="output-text" readonly placeholder="ここに結果が表示されます"></textarea>
+          <textarea id="output-text" aria-labelledby="label-output" readonly placeholder="ここに結果が表示されます"></textarea>
           <div class="diff-toggle">
             <label class="toggle">
               <input type="checkbox" id="opt-diff-view" />
@@ -447,10 +448,10 @@
           <table class="table" id="mapping-table">
             <thead>
               <tr>
-                <th style="width:72px">有効</th>
-                <th style="width:120px">キー/単語</th>
-                <th>候補（カンマ区切り）</th>
-                <th style="width:180px">操作</th>
+                <th class="col-enabled">有効</th>
+                <th class="col-key">キー/単語</th>
+                <th>候補</th>
+                <th class="col-actions">操作</th>
               </tr>
             </thead>
             <tbody id="mapping-tbody">

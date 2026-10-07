@@ -10,6 +10,7 @@ const FILES = [
   { path: 'index.html', maxLine: 300, minLines: 280 },
   { path: 'test/core.test.js', maxLine: 170, minLines: 150 },
   { path: 'test/html.test.js', maxLine: 200, minLines: 30 },
+  { path: 'test/contrast.test.js', maxLine: 170, minLines: 40 },
 ];
 
 for (const f of FILES) {

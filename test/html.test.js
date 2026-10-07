@@ -5,6 +5,44 @@ import { read, core } from './load.js';
 const html = read('index.html');
 const C = core();
 
+test('CSP の meta があり、meta では効かない指定と unsafe-inline を書かない', () => {
+  const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/);
+  assert.ok(csp, 'CSP の meta がない');
+  for (const d of ["default-src 'self'", "script-src 'self'", "style-src 'self'", "img-src 'self' data:", "connect-src 'none'", "object-src 'none'", "base-uri 'none'"]) {
+    assert.ok(csp[1].includes(d), d);
+  }
+  assert.doesNotMatch(csp[1], /frame-ancestors/); // meta では効かない
+  assert.doesNotMatch(csp[1], /unsafe-inline|unsafe-eval/);
+  for (const name of ['X-Frame-Options', 'X-Content-Type-Options', 'Referrer-Policy', 'X-XSS-Protection']) {
+    assert.equal(html.includes(name), false, `${name} は meta では効かない`);
+  }
+});
+
+test('referrer の meta・favicon・noscript があり、lang は ja', () => {
+  assert.match(html, /<meta name="referrer" content="no-referrer"/);
+  assert.match(html, /<link rel="icon" href="data:,"/);
+  assert.match(html, /<noscript><p class="notice">[^<]+<\/p><\/noscript>/);
+  assert.match(html, /^<html lang="ja">/m);
+});
+
+test('インラインのイベントハンドラーと style 属性がない', () => {
+  assert.doesNotMatch(html, /\son[a-z]+\s*=/i);
+  assert.doesNotMatch(html, /\sstyle\s*=\s*"/i);
+  assert.doesNotMatch(html, /javascript:/i);
+});
+
+test('入出力の textarea に名前があり、テーマボタンは header-tools の中、タブは roving tabindex', () => {
+  assert.match(html, /<h2 id="label-input">/);
+  assert.match(html, /<textarea id="input-text" aria-labelledby="label-input"/);
+  assert.match(html, /<h2 id="label-output">/);
+  assert.match(html, /<textarea id="output-text" aria-labelledby="label-output"/);
+  assert.match(html, /<div class="header-tools">\s*<button class="theme-toggle" id="theme-toggle" type="button" aria-label="[^"]+">/);
+  assert.match(html, /id="tab-convert" tabindex="0"/);
+  assert.match(html, /id="tab-mapping" tabindex="-1"/);
+  assert.match(html, /id="tab-guide" tabindex="-1"/);
+  for (const cls of ['col-enabled', 'col-key', 'col-actions']) assert.ok(html.includes(`<th class="${cls}">`), cls);
+});
+
 test('スクリプトは計算部・画面の順に読み込む', () => {
   const srcs = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
   assert.deepEqual(srcs, ['js/leet-core.js', 'script.js']);
