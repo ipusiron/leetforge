@@ -11,6 +11,7 @@
 
 const STORAGE_KEY = "leetforge.mapping.v1";
 const Core = globalThis.LeetCore;
+const t = (key, values) => globalThis.LFMessages.t(key, values);
 
 // 保存領域。localStorage が使えない環境（例外になる設定・プライベートモードの一部）でも動き、保存できないことは画面に出す
 const storage = {
@@ -110,7 +111,7 @@ function renderStats(result, text) {
     return;
   }
   const st = result.stats;
-  convertStats.textContent = `置換 ${st.changed}カ所（${st.chars}文字）・使ったキー ${st.keys}種・出力 ${result.text.length}文字`;
+  convertStats.textContent = t("conv.stats", { changed: st.changed, chars: st.chars, keys: st.keys, length: result.text.length });
 }
 
 // ---------- Mapping Table ----------
@@ -129,7 +130,7 @@ function renderTable() {
     const altsEl = row.querySelector(".cell-alts");
 
     enabledEl.checked = !!entry.enabled;
-    enabledEl.setAttribute('aria-label', `${key} を有効にする`);
+    enabledEl.setAttribute('aria-label', t('map.enableKey', { key }));
     const badge = document.createElement('span');
     badge.className = Array.from(key).length > 1 ? 'key-badge word' : 'key-badge char';
     badge.textContent = key;
@@ -144,7 +145,7 @@ function renderTable() {
       // label で包むので、文字の部分を押してもチェックが切り替わる（タップの面も広くなる）
       const altItem = document.createElement('label');
       altItem.className = `alt-item ${alt.enabled ? '' : 'disabled'}`;
-      altItem.title = `${key} → ${alt.value}`;
+      altItem.title = t('map.altTitle', { key, value: alt.value });
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -176,8 +177,12 @@ function renderTable() {
       if (optRealtime.checked) debouncedConvert();
     });
 
-    row.querySelector("[data-action='edit']").addEventListener("click", () => openEditDialog(key));
-    row.querySelector("[data-action='delete']").addEventListener("click", () => deleteKey(key));
+    const editBtn = row.querySelector("[data-action='edit']");
+    const deleteBtn = row.querySelector("[data-action='delete']");
+    editBtn.textContent = t("map.edit");
+    deleteBtn.textContent = t("map.delete");
+    editBtn.addEventListener("click", () => openEditDialog(key));
+    deleteBtn.addEventListener("click", () => deleteKey(key));
 
     tbody.appendChild(row);
   }
@@ -230,11 +235,11 @@ dlgForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const key = dlgKey.value.trim();
   if (!Core.isValidKey(key)) {
-    dlgError.textContent = "キーは1文字または単語（空白と制御文字を含まない、最大20文字）で指定してください。";
+    dlgError.textContent = t("err.keyInvalid");
     return;
   }
   if (key !== editingOriginalKey && (key in mapping.map)) {
-    dlgError.textContent = "同じキーがすでにあります。";
+    dlgError.textContent = t("err.keyDuplicate");
     return;
   }
   // 既存の候補は有効・無効をそのまま引き継ぎ、新しい候補は有効にする
@@ -244,7 +249,7 @@ dlgForm.addEventListener("submit", (e) => {
     return { value, enabled: old ? old.enabled : true };
   });
   if (!newAlts.length) {
-    dlgError.textContent = "候補を1つ以上、カンマ区切りで入れてください。";
+    dlgError.textContent = t("err.altsEmpty");
     return;
   }
   const enabled = dlgEnabled.checked;
@@ -301,8 +306,8 @@ document.getElementById("file-import-json").addEventListener("change", async (e)
     mapping = parsed.mapping;
     saveMapping();
     renderTable();
-    const note = parsed.skipped.length ? `（読み飛ばしたキー: ${parsed.skipped.join(", ")}）` : "";
-    showMappingStatus(`${parsed.count}件のキーを読み込みました${note}`);
+    const note = parsed.skipped.length ? t("map.importedSkipped", { keys: parsed.skipped.join(", ") }) : "";
+    showMappingStatus(t("map.imported", { count: parsed.count, note }));
     if (optRealtime.checked) debouncedConvert();
   } catch (err) {
     console.error(err);
@@ -313,19 +318,13 @@ document.getElementById("file-import-json").addEventListener("change", async (e)
 });
 
 function importErrorMessage(code) {
-  const messages = {
-    tooLarge: "ファイルサイズが大きすぎます。1MB以下のファイルを選択してください。",
-    invalidJson: "読み込みに失敗しました。JSONの形式を確認してください。",
-    noMap: "不正なJSONです。'map' オブジェクトが見つかりません。",
-    tooManyKeys: "マッピング数が多すぎます。200個以下に制限してください。",
-    empty: "有効なキーが1つもありません。"
-  };
-  return messages[code] || messages.invalidJson;
+  const known = ["tooLarge", "invalidJson", "noMap", "tooManyKeys", "empty"];
+  return t(`err.${known.includes(code) ? code : "invalidJson"}`);
 }
 
 // ---------- Reset Defaults ----------
 document.getElementById("btn-reset-defaults").addEventListener("click", () => {
-  if (confirm("対応表を初期状態（基本プリセット）に戻します。よろしいですか？")) {
+  if (confirm(t("map.resetConfirm"))) {
     resetToDefaults();
     if (optRealtime.checked) debouncedConvert();
   }
@@ -337,24 +336,21 @@ const btnApplyPreset = document.getElementById("btn-apply-preset");
 
 function presetTableText(presetKey) {
   const table = Core.PRESETS[presetKey].table;
+  if (!table) return "";
   return Object.entries(table).map(([k, vals]) => `${k}→${vals.join("/")}`).join(" ");
 }
 
-const PRESETS = {
-  basic: { name: "基本 (Basic)", description: `7文字の単一対応: ${presetTableText("basic")}` },
-  standard: { name: "標準 (Standard)", description: `よく見る12文字、候補は1〜2個: ${presetTableText("standard")}` },
-  advanced: { name: "上級 (Advanced)", description: "小文字26文字。ASCIIの候補をすべて使う" },
-  elite: { name: "エリート (Elite)", description: "小文字と大文字52文字。非ASCIIを含む候補をすべて使う" },
-  words: { name: "単語変換 (Words)", description: "よく使う英単語12語を短く（and→& for→4 great→gr8 など）" },
-  combo: { name: "コンボ (Combo)", description: `基本の7文字に単語6語を足す: ${presetTableText("combo")}` },
-  reverse: { name: "逆変換 (Reverse)", description: "数字0〜9を文字に戻す（1→i/I/l/L/| のように一意には戻らない）" },
-  hashcat: { name: "hashcat leetspeak.rule", description: `hashcat の rules/leetspeak.rule と同じ置換: ${presetTableText("hashcat")}` },
-  john: { name: "John the Ripper Leet", description: `John the Ripper の john.conf [List.External:Leet] と同じ置換: ${presetTableText("john")}` },
-  cupp: { name: "cupp 1337 mode", description: `cupp の cupp.cfg [leet] と同じ置換: ${presetTableText("cupp")}` }
-};
+// プリセットの名前と説明は辞書から（説明の置換表は計算部の表から作り、手で写さない）
+function presetName(presetKey) {
+  return t(`preset.${presetKey}.name`);
+}
+
+function presetDescription(presetKey) {
+  return t(`preset.${presetKey}.desc`, { table: presetTableText(presetKey) });
+}
 
 function applyPreset(presetKey) {
-  if (!PRESETS[presetKey]) return;
+  if (!Core.PRESETS[presetKey]) return;
   mapping = Core.applyPreset(mapping, presetKey);
   saveMapping();
   renderTable();
@@ -375,12 +371,11 @@ const presetDisableCountEl = document.getElementById("preset-disable-count");
 const presetConfirmBtn = document.getElementById("preset-confirm");
 
 function showPresetDialog(presetKey) {
-  const preset = PRESETS[presetKey];
-  if (!preset) return;
+  if (!Core.PRESETS[presetKey]) return;
 
   // Update dialog content
-  presetNameEl.textContent = preset.name;
-  presetDescriptionEl.textContent = preset.description;
+  presetNameEl.textContent = presetName(presetKey);
+  presetDescriptionEl.textContent = presetDescription(presetKey);
 
   // 有効になるキーの数と、いま有効で無効になるキーの数
   const summary = Core.presetSummary(mapping, presetKey);
@@ -409,7 +404,7 @@ document.getElementById("preset-cancel").addEventListener("click", () => presetD
 
 btnApplyPreset.addEventListener("click", () => {
   const selectedPreset = leetPreset.value;
-  if (selectedPreset && PRESETS[selectedPreset]) {
+  if (selectedPreset && Core.PRESETS[selectedPreset]) {
     showPresetDialog(selectedPreset);
   }
 });
@@ -452,7 +447,7 @@ btnCopyOut.addEventListener("click", async () => {
     btnCopyOut.classList.add('success');
     setTimeout(() => btnCopyOut.classList.remove('success'), 500);
   }
-  flashButton(btnCopyOut, ok ? "✓ コピー完了" : "コピーできません");
+  flashButton(btnCopyOut, ok ? t("conv.copied") : t("conv.copyFailed"));
 });
 btnClearIn.addEventListener("click", () => {
   inputText.value = "";
@@ -595,14 +590,14 @@ function showDiffView() {
 
   const originalDiv = document.createElement('div');
   originalDiv.className = 'diff-text original';
-  originalDiv.setAttribute('aria-label', '変換前');
+  originalDiv.setAttribute('aria-label', t('conv.diffBefore'));
   const arrowDiv = document.createElement('div');
   arrowDiv.className = 'diff-arrow';
   arrowDiv.textContent = '→';
   arrowDiv.setAttribute('aria-hidden', 'true');
   const convertedDiv = document.createElement('div');
   convertedDiv.className = 'diff-text converted';
-  convertedDiv.setAttribute('aria-label', '変換後');
+  convertedDiv.setAttribute('aria-label', t('conv.diffAfter'));
   for (const seg of lastResult.segments) {
     originalDiv.appendChild(segmentNode(seg, 'from'));
     convertedDiv.appendChild(segmentNode(seg, 'to'));
@@ -677,6 +672,10 @@ function init() {
   // Initialize theme
   initTheme();
 
+  // 言語: ?lang= → 保存した選択 → ブラウザーの言語
+  const I18N = globalThis.LFI18n;
+  I18N.use(I18N.initialLanguage(location.search, I18N.readSaved(), navigator.languages), document);
+
   loadOptions();
   renderTable();
   // 初回は空入力で出力クリア
@@ -697,9 +696,31 @@ function init() {
   }
 
   if (!storage.available) {
-    showNotice("ブラウザーの保存領域が使えないため、対応表とオプションはこのページを閉じると消えます。");
+    showNotice(t("notice.noStorage"));
   }
 }
+
+// ---------- Language ----------
+const langToggle = document.getElementById('lang-toggle');
+
+// 言語を切り替えたら、辞書から作った表示を全部作り直す（表の行・件数・通知・比較ビュー）
+function applyLanguage(lang) {
+  globalThis.LFI18n.use(lang, document);
+  renderTable();
+  if (lastResult) renderStats(lastResult, inputText.value);
+  if (!noticeEl.hidden) showNotice(t("notice.noStorage"));
+  showMappingStatus("");
+  presetNameEl.textContent = "";
+  presetDescriptionEl.textContent = "";
+  if (optDiffView.checked && !diffContainer.hidden && lastResult) showDiffView();
+  else diffContainer.replaceChildren();
+}
+
+langToggle.addEventListener('click', () => {
+  const next = globalThis.LFMessages.getLanguage() === 'ja' ? 'en' : 'ja';
+  globalThis.LFI18n.save(next);
+  applyLanguage(next);
+});
 
 // ---------- Tabs ----------
 // クリックと矢印キー（左右・Home・End）で切り替える。tabindex は選択中のタブだけ 0

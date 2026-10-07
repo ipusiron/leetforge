@@ -1257,6 +1257,21 @@ mark.seg.to {
   justify-content: flex-end;
   gap: 8px;
 }
+.lang-toggle {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 14px;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+.lang-toggle:hover {
+  border-color: var(--accent);
+}
 .theme-toggle {
   background: var(--card);
   border: 1px solid var(--border);
@@ -1390,5 +1405,22 @@ footer{
     min-width: 0;
     width: 100%;
     flex: 1 1 auto;
+  }
+}
+
+/* 狭い画面の丸い枠（.field）: 基本規則（min-width:160px）より後ろに置かないと効かない */
+@media (max-width: 640px) {
+  .field {
+    flex-wrap: wrap;
+  }
+  .field input, .field select {
+    min-width: 0;
+    width: auto;
+    flex: 1 1 120px;
+  }
+  #rate-field input[type="range"] {
+    min-width: 0;
+    width: auto;
+    flex: 1 1 100px;
   }
 }
