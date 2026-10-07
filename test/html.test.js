@@ -65,6 +65,10 @@ test('ダイアログのキャンセルは type="button"（submit にしない�
   assert.match(html, /<form method="dialog" class="dialog-card" id="edit-form" novalidate>/);
 });
 
+test('WeirdString Inspector へのリンクは新しいタブで開き、opener を渡さない', () => {
+  assert.match(html, /<a id="link-weirdstring" class="btn ghost" href="https:\/\/ipusiron\.github\.io\/weirdstring-inspector\/" target="_blank" rel="noopener noreferrer"/);
+});
+
 test('通知の領域（role="status"）がある', () => {
   assert.match(html, /<p id="notice" class="notice" role="status" aria-live="polite" hidden><\/p>/);
   assert.match(html, /<p class="status" id="mapping-status" role="status" aria-live="polite"><\/p>/);
@@ -75,6 +79,7 @@ test('主要な要素の id がそろっている', () => {
     'theme-toggle', 'lang-toggle', 'tab-convert', 'tab-mapping', 'tab-guide', 'panel-convert', 'panel-mapping', 'panel-guide',
     'input-text', 'output-text', 'btn-clear-input', 'btn-copy-output', 'opt-diff-view', 'opt-realtime', 'opt-seed-lock',
     'seed-field', 'seed-value', 'select-mode', 'btn-convert', 'rate-value', 'rate-output', 'opt-ascii-only', 'convert-stats',
+    'coverage-card', 'cov-hashcat', 'cov-john', 'cov-cupp', 'cov-variants', 'cov-used', 'link-weirdstring',
     'btn-add-key', 'leet-preset', 'btn-apply-preset', 'btn-export-json', 'file-import-json', 'btn-reset-defaults', 'mapping-table', 'mapping-tbody',
     'preset-dialog', 'preset-form', 'preset-name', 'preset-description', 'preset-enable-count', 'preset-disable-count', 'preset-cancel', 'preset-confirm',
     'edit-dialog', 'edit-form', 'dlg-key', 'dlg-alts', 'dlg-enabled', 'dlg-error', 'dlg-cancel', 'dlg-delete', 'dlg-save', 'row-template',

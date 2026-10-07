@@ -44,6 +44,8 @@ Runs entirely in your browser. Nothing is sent anywhere.
 - Convert-as-you-type mode, plus a manual mode that gives a different result on every click
 - Options for the conversion rate (0–100%) and ASCII only (skip non-ASCII candidates)
 - A compare view that pairs each replaced segment before and after conversion and counts the replacements
+- Checks whether the current output can be produced by the default substitution tables of hashcat, John the Ripper and cupp, and shows how many outputs the mapping can produce (in bits)
+- Hands the output to WeirdString Inspector (Day023) to inspect look-alike characters
 - The mapping can be toggled per key (a character or a word) and per candidate, and keys can be added, edited and deleted
 - 10 presets: Basic, Standard, Advanced, Elite, Words, Combo, Reverse, and the substitution tables of hashcat, John the Ripper and cupp
 - JSON export and import of the mapping (imports are validated structurally)
@@ -61,7 +63,8 @@ Runs entirely in your browser. Nothing is sent anywhere.
 5. On the Mapping tab, choose a preset and press "Apply" to switch keys and candidates on and off at once. The confirmation dialog shows how many keys will be turned on and off
 6. Toggle individual candidates with the checkbox next to each one, or whole keys with the checkbox on the left. "Edit" changes the candidates; "Add key" adds a new character or word
 7. "Export" saves the mapping as JSON and "Import" loads one. "Reset" returns to the initial state (the Basic preset)
-8. The Learn tab explains where leet comes from, the basic substitutions, where it is used and the caveats
+8. "Check against cracking-tool rules" below the output shows whether the default tables of hashcat, John the Ripper and cupp can produce the current output, and how many outputs this mapping can produce. "Inspect with WeirdString Inspector" hands the output to WeirdString Inspector (Day023) in a new tab
+9. The Learn tab explains where leet comes from, the basic substitutions, where it is used and the caveats
 
 ---
 
@@ -69,7 +72,7 @@ Runs entirely in your browser. Nothing is sent anywhere.
 
 | Tab | Contents |
 |---|---|
-| Convert | Input, output, compare view, replacement count, options (as you type, fixed seed, picking method, rate, ASCII only) |
+| Convert | Input, output, compare view, replacement count, options (as you type, fixed seed, picking method, rate, ASCII only), check against cracking-tool rules |
 | Mapping | Mapping table (key, candidates, on/off), add and edit keys, presets, export and import, reset |
 | Learn | Origin and timeline of leet, basic substitution rules, where it is used, caveats and good practice |
 
@@ -111,6 +114,20 @@ The catalog has 74 keys (26 lowercase letters, 26 uppercase letters, 10 digits a
 | `hashcat` | Identical to hashcat's `rules/leetspeak.rule` | `a→4/@ b→6 c→</{ e→3 g→9 i→1/! o→0 q→9 s→5/$ t→7/+ x→%` |
 | `john` | Identical to `[List.External:Leet]` in John the Ripper's `john.conf` | `a→4/@ b→8 e→3 g→9 i→1/! l→1 o→0 s→$/5 t→7` |
 | `cupp` | Identical to `[leet]` in cupp's `cupp.cfg` | `a→4 i→1 e→3 t→7 o→0 s→5 g→9 z→2` |
+
+### Check against cracking-tool rules
+
+The three tools have similar tables but use them differently, so whether they can produce a given output is checked separately (`coverage()`).
+
+| Tool | How the table is used | Check |
+|---|---|---|
+| hashcat `rules/leetspeak.rule` | Each rule applies one substitution to every occurrence (16 rules such as `sa4`). One line, `sa@sc<se3si1so0ss$`, applies six at once | Does any of the 17 lines turn the input into the output? |
+| John the Ripper `[List.External:Leet]` | Runs through every combination of "original / each candidate" for the table letters from the start of the word. At most 10 letters are varied, and it stops once the combinations reach 4,000 | Are all substitutions at varied positions, with candidates from the table? |
+| cupp `[leet]` | Applies the whole table at once (one result) | Does the output equal that result? |
+
+For example, turning `password` into `p455w0rd` with the Basic preset gives × for hashcat (a rule substitutes only one kind of character), ○ for John the Ripper (within the 54 combinations over the first four letters) and ○ for cupp (identical to applying the whole table). Enabling only `a→@`, `s→$` and `o→0` to get `p@$$w0rd` gives ○ for hashcat through the multi line.
+
+"Outputs this mapping can produce" is the product of (1 + number of candidates) over the replaceable positions, also shown as a power of two. It is the extra work for an attacker who knows the table. The substitutions used are listed with the tables that contain them (`e→ə`, for example, is in none).
 
 ### Known answers
 
@@ -172,7 +189,7 @@ Import checks the structure of `map`, the characters of each key (no spaces or c
 - Hobbies and creative work: make user names for games and social media, stream captions, T-shirt and sticker lettering. The Elite preset's non-ASCII symbols are fun to play with
 - Hobbies and creative work: write puzzle and escape-room clues, lines for a hacker character in a tabletop RPG, or read the 1337 spellings in CTF write-ups
 - Research: compare the hashcat, John and cupp substitution tables on one screen. Save your own mapping as JSON and diff it
-- With other tools: paste the output into [WeirdString Inspector (Day023)](https://ipusiron.github.io/weirdstring-inspector/) and the non-ASCII candidates are flagged as look-alike characters. Paste it into [Password Checker (Day001)](https://ipusiron.github.io/password-checker/) to see how little symbol substitution adds compared with length
+- With other tools: hand the output to [WeirdString Inspector (Day023)](https://ipusiron.github.io/weirdstring-inspector/) with the "Inspect with WeirdString Inspector" button and the non-ASCII candidates are flagged as look-alike characters. Paste it into [Password Checker (Day001)](https://ipusiron.github.io/password-checker/) to see how little symbol substitution adds compared with length
 - Limits: the conversion is mechanical and ignores context. Decoding is not unique. The tool does not rate strength
 
 ---
