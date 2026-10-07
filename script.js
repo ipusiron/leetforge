@@ -5,12 +5,35 @@
  * - マッピング一覧/編集/追加/削除
  * - JSON インポート/エクスポート
  * - ランダム/ラウンドロビン選択
- * - シード固定（Mulberry32）
+ * - シード固定（位置ハッシュ。同じシードなら同じ結果）
  * - リアルタイム変換（デバウンス）
  * ======================================================= */
 
 const STORAGE_KEY = "leetforge.mapping.v1";
 const Core = globalThis.LeetCore;
+
+// 保存領域。localStorage が使えない環境（例外になる設定・プライベートモードの一部）でも動き、保存できないことは画面に出す
+const storage = {
+  available: true,
+  get(key) {
+    try { return localStorage.getItem(key); } catch { this.available = false; return null; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, value); return true; } catch { this.available = false; return false; }
+  }
+};
+
+// 画面への通知（alert を使わない）
+const noticeEl = document.getElementById("notice");
+const mappingStatusEl = document.getElementById("mapping-status");
+function showNotice(text) {
+  noticeEl.textContent = text;
+  noticeEl.hidden = !text;
+}
+function showMappingStatus(text, isError = false) {
+  mappingStatusEl.textContent = text;
+  mappingStatusEl.classList.toggle("error", isError);
+}
 
 // ---------- State ----------
 let mapping = loadMapping();
@@ -18,11 +41,11 @@ let lastResult = null; // 直近の変換結果（区間つき）
 
 // ---------- Helpers ----------
 function saveMapping() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(mapping));
+  storage.set(STORAGE_KEY, JSON.stringify(mapping));
 }
 
 function loadMapping() {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = storage.get(STORAGE_KEY);
   if (!raw) return Core.initialMapping();
   try {
     const obj = JSON.parse(raw);
@@ -185,6 +208,8 @@ function openEditDialog(key) {
   dlg.showModal();
 }
 
+document.getElementById("dlg-cancel").addEventListener("click", () => dlg.close());
+
 dlgDeleteBtn.addEventListener("click", () => {
   if (editingOriginalKey && (editingOriginalKey in mapping.map)) {
     delete mapping.map[editingOriginalKey];
@@ -199,7 +224,11 @@ dlgForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const key = dlgKey.value.trim();
   if (!Core.isValidKey(key)) {
-    dlgError.textContent = "キーは1文字または単語（英数字・記号、最大20文字）で指定してください。";
+    dlgError.textContent = "キーは1文字または単語（空白と制御文字を含まない、最大20文字）で指定してください。";
+    return;
+  }
+  if (key !== editingOriginalKey && (key in mapping.map)) {
+    dlgError.textContent = "同じキーがすでにあります。";
     return;
   }
   // 既存の候補は有効・無効をそのまま引き継ぎ、新しい候補は有効にする
@@ -208,6 +237,10 @@ dlgForm.addEventListener("submit", (e) => {
     const old = previous.find(alt => alt.value === value);
     return { value, enabled: old ? old.enabled : true };
   });
+  if (!newAlts.length) {
+    dlgError.textContent = "候補を1つ以上、カンマ区切りで入れてください。";
+    return;
+  }
   const enabled = dlgEnabled.checked;
 
   // 上書き保存（キー変更にも対応）
@@ -250,25 +283,24 @@ document.getElementById("file-import-json").addEventListener("change", async (e)
   try {
     // 読み込む前に大きさで弾く（1MB）
     if (file.size > Core.LIMITS.importBytes) {
-      alert(importErrorMessage("tooLarge"));
+      showMappingStatus(importErrorMessage("tooLarge"), true);
       return;
     }
     const text = await file.text();
     const parsed = Core.parseImport(text);
     if (!parsed.ok) {
-      alert(importErrorMessage(parsed.errors[0]));
+      showMappingStatus(importErrorMessage(parsed.errors[0]), true);
       return;
     }
     mapping = parsed.mapping;
     saveMapping();
     renderTable();
-    if (parsed.skipped.length) {
-      alert("読み飛ばしたキー: " + parsed.skipped.join(", "));
-    }
+    const note = parsed.skipped.length ? `（読み飛ばしたキー: ${parsed.skipped.join(", ")}）` : "";
+    showMappingStatus(`${parsed.count}件のキーを読み込みました${note}`);
     if (optRealtime.checked) debouncedConvert();
   } catch (err) {
     console.error(err);
-    alert(importErrorMessage("invalidJson"));
+    showMappingStatus(importErrorMessage("invalidJson"), true);
   } finally {
     e.target.value = ""; // reset
   }
@@ -287,7 +319,7 @@ function importErrorMessage(code) {
 
 // ---------- Reset Defaults ----------
 document.getElementById("btn-reset-defaults").addEventListener("click", () => {
-  if (confirm("初期マップに戻します。よろしいですか？")) {
+  if (confirm("対応表を初期状態（基本プリセット）に戻します。よろしいですか？")) {
     resetToDefaults();
     if (optRealtime.checked) debouncedConvert();
   }
@@ -297,14 +329,22 @@ document.getElementById("btn-reset-defaults").addEventListener("click", () => {
 const leetPreset = document.getElementById("leet-preset");
 const btnApplyPreset = document.getElementById("btn-apply-preset");
 
+function presetTableText(presetKey) {
+  const table = Core.PRESETS[presetKey].table;
+  return Object.entries(table).map(([k, vals]) => `${k}→${vals.join("/")}`).join(" ");
+}
+
 const PRESETS = {
-  basic: { name: "基本 (Basic)", description: "最も基本的なLeet変換（a→4 e→3 i→1 o→0 s→5 t→7 l→1）" },
-  standard: { name: "標準 (Standard)", description: "一般的なLeet変換（12文字、候補は1〜2個）" },
-  advanced: { name: "上級 (Advanced)", description: "小文字26文字、ASCIIの候補をすべて使う" },
-  elite: { name: "エリート (Elite)", description: "小文字と大文字、非ASCIIを含む候補をすべて使う" },
-  reverse: { name: "逆変換 (Reverse)", description: "数字を文字に変換" },
-  words: { name: "単語変換 (Words)", description: "よく使う英単語をLeet化" },
-  combo: { name: "コンボ (Combo)", description: "基本文字 + 単語変換" }
+  basic: { name: "基本 (Basic)", description: `7文字の単一対応: ${presetTableText("basic")}` },
+  standard: { name: "標準 (Standard)", description: `よく見る12文字、候補は1〜2個: ${presetTableText("standard")}` },
+  advanced: { name: "上級 (Advanced)", description: "小文字26文字。ASCIIの候補をすべて使う" },
+  elite: { name: "エリート (Elite)", description: "小文字と大文字52文字。非ASCIIを含む候補をすべて使う" },
+  words: { name: "単語変換 (Words)", description: "よく使う英単語12語を短く（and→& for→4 great→gr8 など）" },
+  combo: { name: "コンボ (Combo)", description: `基本の7文字に単語6語を足す: ${presetTableText("combo")}` },
+  reverse: { name: "逆変換 (Reverse)", description: "数字0〜9を文字に戻す（1→i/I/l/L/| のように一意には戻らない）" },
+  hashcat: { name: "hashcat leetspeak.rule", description: `hashcat の rules/leetspeak.rule と同じ置換: ${presetTableText("hashcat")}` },
+  john: { name: "John the Ripper Leet", description: `John the Ripper の john.conf [List.External:Leet] と同じ置換: ${presetTableText("john")}` },
+  cupp: { name: "cupp 1337 mode", description: `cupp の cupp.cfg [leet] と同じ置換: ${presetTableText("cupp")}` }
 };
 
 function applyPreset(presetKey) {
@@ -359,6 +399,8 @@ presetForm.addEventListener("submit", (e) => {
   }
 });
 
+document.getElementById("preset-cancel").addEventListener("click", () => presetDialog.close());
+
 btnApplyPreset.addEventListener("click", () => {
   const selectedPreset = leetPreset.value;
   if (selectedPreset && PRESETS[selectedPreset]) {
@@ -389,14 +431,18 @@ btnConvert.addEventListener("click", () => {
   }, 600);
 });
 btnCopyOut.addEventListener("click", async () => {
+  let ok = false;
   try {
     await navigator.clipboard.writeText(outputText.value);
-    btnCopyOut.classList.add('success');
-    flashButton(btnCopyOut, "✓ コピー完了");
-    setTimeout(() => btnCopyOut.classList.remove('success'), 500);
+    ok = true;
   } catch {
-    fallbackCopy(outputText);
+    ok = fallbackCopy(outputText);
   }
+  if (ok) {
+    btnCopyOut.classList.add('success');
+    setTimeout(() => btnCopyOut.classList.remove('success'), 500);
+  }
+  flashButton(btnCopyOut, ok ? "✓ コピー完了" : "コピーできません");
 });
 btnClearIn.addEventListener("click", () => {
   inputText.value = "";
@@ -404,30 +450,28 @@ btnClearIn.addEventListener("click", () => {
 });
 
 function flashButton(btn, label) {
-  const originalContent = btn.innerHTML;
   const span = btn.querySelector('span');
-  if (span) {
-    const originalText = span.textContent;
-    span.textContent = label;
-    btn.disabled = true;
-    setTimeout(() => {
-      span.textContent = originalText;
-      btn.disabled = false;
-    }, 1000);
-  } else {
-    btn.textContent = label;
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.innerHTML = originalContent;
-      btn.disabled = false;
-    }, 1000);
-  }
+  if (!span) return;
+  const originalText = span.textContent;
+  span.textContent = label;
+  btn.disabled = true;
+  setTimeout(() => {
+    span.textContent = originalText;
+    btn.disabled = false;
+  }, 1000);
 }
 
+// clipboard API が使えないとき（file:// や権限なし）の代替。成功したかを返す
 function fallbackCopy(el) {
   el.select();
-  document.execCommand("copy");
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
   el.setSelectionRange(0, 0);
+  return ok;
 }
 
 inputText.addEventListener("input", () => {
@@ -449,7 +493,7 @@ seedValue.addEventListener("input", () => {
 // persist simple options to localStorage
 const LS_OPT_KEY = "leetforge.options";
 function loadOptions() {
-  const raw = localStorage.getItem(LS_OPT_KEY);
+  const raw = storage.get(LS_OPT_KEY);
   if (!raw) return;
   try {
     const o = JSON.parse(raw);
@@ -473,7 +517,7 @@ function saveOptions() {
     seedValue: seedValue.value,
     mode: selectMode.value
   };
-  localStorage.setItem(LS_OPT_KEY, JSON.stringify(o));
+  storage.set(LS_OPT_KEY, JSON.stringify(o));
 }
 // Update convert button visibility based on realtime mode
 function updateConvertButtonVisibility() {
@@ -483,6 +527,7 @@ function updateConvertButtonVisibility() {
 optRealtime.addEventListener("change", () => {
   updateConvertButtonVisibility();
   saveOptions();
+  if (optRealtime.checked) debouncedConvert();
 });
 
 for (const el of [optSeedLock, seedValue, selectMode]) {
@@ -563,7 +608,7 @@ function highlightChanges(original, converted) {
 
 optDiffView.addEventListener('change', () => {
   updateDiffView();
-  localStorage.setItem('leetforge.diffView', optDiffView.checked);
+  storage.set('leetforge.diffView', optDiffView.checked);
 });
 
 // ---------- Theme Toggle ----------
@@ -583,7 +628,7 @@ function setTheme(theme) {
   } else {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
-  localStorage.setItem(THEME_KEY, theme);
+  storage.set(THEME_KEY, theme);
 }
 
 function toggleTheme() {
@@ -594,7 +639,7 @@ function toggleTheme() {
 
 function initTheme() {
   // Check localStorage first
-  const savedTheme = localStorage.getItem(THEME_KEY);
+  const savedTheme = storage.get(THEME_KEY);
   if (savedTheme) {
     setTheme(savedTheme);
   } else {
@@ -608,7 +653,7 @@ function initTheme() {
 if (window.matchMedia) {
   window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
     // Only auto-switch if user hasn't manually set a preference
-    if (!localStorage.getItem(THEME_KEY)) {
+    if (!storage.get(THEME_KEY)) {
       setTheme(e.matches ? 'light' : 'dark');
     }
   });
@@ -634,9 +679,13 @@ function init() {
   updateConvertButtonVisibility();
 
   // Load diff view preference
-  const savedDiffView = localStorage.getItem('leetforge.diffView');
+  const savedDiffView = storage.get('leetforge.diffView');
   if (savedDiffView === 'true') {
     optDiffView.checked = true;
+  }
+
+  if (!storage.available) {
+    showNotice("ブラウザーの保存領域が使えないため、対応表とオプションはこのページを閉じると消えます。");
   }
 }
 

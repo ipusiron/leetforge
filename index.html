@@ -55,6 +55,7 @@
         <span>座学</span>
       </button>
     </nav>
+    <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
   </header>
 
   <main>
@@ -377,13 +378,22 @@
                 <span>プリセット</span>
                 <select id="leet-preset" required>
                   <option value="">選択してください</option>
-                  <option value="basic">基本 (Basic)</option>
-                  <option value="standard">標準 (Standard)</option>
-                  <option value="advanced">上級 (Advanced)</option>
-                  <option value="elite">エリート (Elite)</option>
-                  <option value="words">単語変換 (Words)</option>
-                  <option value="combo">コンボ (Combo)</option>
-                  <option value="reverse">逆変換 (Reverse)</option>
+                  <optgroup label="段階">
+                    <option value="basic">基本 (Basic)</option>
+                    <option value="standard">標準 (Standard)</option>
+                    <option value="advanced">上級 (Advanced)</option>
+                    <option value="elite">エリート (Elite)</option>
+                  </optgroup>
+                  <optgroup label="用途">
+                    <option value="words">単語変換 (Words)</option>
+                    <option value="combo">コンボ (Combo)</option>
+                    <option value="reverse">逆変換 (Reverse)</option>
+                  </optgroup>
+                  <optgroup label="攻撃ツールの表">
+                    <option value="hashcat">hashcat leetspeak.rule</option>
+                    <option value="john">John the Ripper Leet</option>
+                    <option value="cupp">cupp 1337 mode</option>
+                  </optgroup>
                 </select>
               </label>
               <button id="btn-apply-preset" class="btn ghost" disabled>
@@ -436,14 +446,15 @@
             </tbody>
           </table>
         </div>
-        <div class="hint">キーは<strong>1文字または単語</strong>。大文字・小文字は別扱い。単語が文字より優先されます。</div>
+        <div class="hint">キーは<strong>1文字または単語</strong>。1文字は大文字・小文字を区別し、単語は区別せず語の単位で当たります。単語が文字より優先されます。</div>
+        <p class="status" id="mapping-status" role="status" aria-live="polite"></p>
       </div>
     </section>
   </main>
 
   <!-- プリセット確認ダイアログ -->
   <dialog id="preset-dialog">
-    <form method="dialog" class="dialog-card" id="preset-form">
+    <form method="dialog" class="dialog-card" id="preset-form" novalidate>
       <h3>プリセット適用確認</h3>
       <div class="dialog-body">
         <div class="preset-info">
@@ -477,7 +488,7 @@
         </div>
       </div>
       <div class="dialog-actions">
-        <button value="cancel" class="btn ghost">キャンセル</button>
+        <button type="button" id="preset-cancel" class="btn ghost">キャンセル</button>
         <button id="preset-confirm" type="submit" class="btn primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
@@ -490,12 +501,12 @@
 
   <!-- 編集ダイアログ -->
   <dialog id="edit-dialog">
-    <form method="dialog" class="dialog-card" id="edit-form">
+    <form method="dialog" class="dialog-card" id="edit-form" novalidate>
       <h3>マッピングの編集</h3>
       <div class="dialog-body">
         <label class="field">
           <span>キー/単語</span>
-          <input id="dlg-key" type="text" maxlength="20" required />
+          <input id="dlg-key" type="text" maxlength="20" autocomplete="off" />
         </label>
         <label class="field">
           <span>候補（カンマ区切り）</span>
@@ -508,7 +519,7 @@
         <div class="error" id="dlg-error" role="alert" aria-live="polite"></div>
       </div>
       <div class="dialog-actions">
-        <button value="cancel" class="btn ghost">キャンセル</button>
+        <button type="button" id="dlg-cancel" class="btn ghost">キャンセル</button>
         <button id="dlg-delete" type="button" class="btn danger ghost">キー行を削除</button>
         <button id="dlg-save" type="submit" class="btn primary">保存</button>
       </div>
