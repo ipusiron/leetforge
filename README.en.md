@@ -183,6 +183,12 @@ Import checks the structure of `map`, the characters of each key (no spaces or c
 
 ## 🎯 Use cases
 
+Ways of using this tool in particular
+
+- Confirming that the substitutions are in dictionary-attack rules (password classes): with the hashcat preset, converting `password` in full gives `p45$w0rd` (a->4, s->5, s->$, o->0). The coverage panel shows that a->4, s->5 and o->0 are in all three rule tables of hashcat, John and cupp, and that s->$ is in hashcat and John too. So leetifying a dictionary word does not hide it from a dictionary attack that applies these substitution rules. You can show, by the match against the attack tools' rule tables, why changing the look is not a protection
+- Confirming that the number of candidates added by substitution can be counted (combinatorics and information classes): `password` has 4 positions that can change, all substitution combinations number 54, which is 5.75 bits of information. However flashy it looks, that is all the substitution adds, less than adding one random character. You can confirm with real numbers that, if the rules are public, the number of candidates can be computed no matter how complex the output looks
+- Confirming that the same string hits different rules depending on the tool (comparison of dictionary-attack tools): the s->$ in `p45$w0rd` is in the rule tables of hashcat and John but not in cupp's. Even for the same leet string, which tool's dictionary rules can reproduce it differs. Because the substitution tables differ by tool, you can compare across the three tables how a conversion that one tool cannot reproduce another can
+
 - Education: in an IT class, use it as the simplest substitution cipher to see how a table relates to the output. The preset tables and the rate slider make it tangible that "if the rules are public, the candidates can be counted even though the text looks different"
 - Education: in English or media classes, read and write the leet and 31337 of internet culture. The timeline on the Learn tab only states what could be confirmed from primary sources
 - Learning security: check why "p@ssw0rd" looks strong and why it is nevertheless covered by dictionary-attack rules, using the hashcat, John and cupp presets

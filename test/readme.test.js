@@ -175,3 +175,20 @@ test('README のテストの節と workflow が実態に合う', () => {
   assert.ok(fs.existsSync(new URL('.github/workflows/test.yml', ROOT)));
   assert.match(read('.github/workflows/test.yml'), /node-version: 22/);
 });
+
+test('ユースケースの「このツールならではの使い方」の値は計算部と同じ（日英）', () => {
+  const m = C.applyPreset(C.initialMapping(), 'hashcat');
+  const out = C.convert('password', m, { seed: C.DEFAULT_SEED, rate: 100 });
+  assert.equal(out.text, 'p45$w0rd');
+  const cov = C.coverage('password', out, m, {});
+  assert.deepEqual([cov.variants.count, cov.variants.bits, cov.variants.positions], ['54', 5.75, 4]);
+  const used = Object.fromEntries(cov.used.map((u) => [u.from + u.to, u]));
+  for (const k of ['a4', 's5', 'o0']) {
+    assert.deepEqual([used[k].hashcat, used[k].john, used[k].cupp], [true, true, true], k);
+  }
+  assert.deepEqual([used['s$'].hashcat, used['s$'].john, used['s$'].cupp], [true, true, false]);
+  for (const md of [readme, readmeEn]) {
+    assert.ok(md.includes('p45$w0rd'));
+    assert.ok(md.includes('54') && md.includes('5.75'));
+  }
+});
